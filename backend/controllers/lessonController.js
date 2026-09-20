@@ -1,147 +1,204 @@
 const Lesson = require("../models/Lesson");
-const Course = require("../models/Course");
-const mongoose = require("mongoose");
 
-// POST /api/lessons - Create a new lesson for a course
-exports.createLesson = async (req, res) => {
+// =====================================
+// GET ALL LESSONS
+// =====================================
+const getLessons = async (req, res) => {
   try {
-    const { courseId, title, description, videoUrl, duration, lessonNumber } = req.body;
+    const lessons = await Lesson.find()
+      .populate("course")
+      .sort({ lessonNumber: 1 });
 
-    if (!courseId || !title) {
-      return res.status(400).json({
+    res.status(200).json({
+      success: true,
+      lessons
+    });
+
+  } catch (error) {
+    console.error("Get Lessons Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+
+// =====================================
+// GET LESSONS BY COURSE
+// =====================================
+const getLessonsByCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const lessons = await Lesson.find({
+      course: courseId
+    })
+      .populate("course")
+      .sort({ lessonNumber: 1 });
+
+    res.status(200).json({
+      success: true,
+      lessons
+    });
+
+  } catch (error) {
+    console.error(
+      "Get Course Lessons Error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+
+// =====================================
+// GET SINGLE LESSON
+// =====================================
+const getLessonById = async (req, res) => {
+  try {
+    const lesson =
+      await Lesson.findById(req.params.id)
+        .populate("course");
+
+    if (!lesson) {
+      return res.status(404).json({
         success: false,
-        message: "courseId and title are required",
+        message: "Lesson not found"
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(courseId)) {
-      return res.status(400).json({ success: false, message: "Invalid Course ID format" });
-    }
+    res.status(200).json({
+      success: true,
+      lesson
+    });
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ success: false, message: "Course not found" });
-    }
+  } catch (error) {
+    console.error(
+      "Get Lesson Error:",
+      error
+    );
 
-    // Auto-calculate lesson number if not provided
-    let lessonNum = lessonNumber;
-    if (!lessonNum) {
-      const count = await Lesson.countDocuments({ course: courseId });
-      lessonNum = count + 1;
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+
+// =====================================
+// CREATE LESSON
+// =====================================
+const createLesson = async (req, res) => {
+  try {
+    const {
+      course,
+      title,
+      description,
+      videoUrl,
+      duration,
+      lessonNumber
+    } = req.body;
+
+    if (
+      !course ||
+      !title ||
+      !description ||
+      !lessonNumber
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Course, title, description and lesson number are required"
+      });
     }
 
     const lesson = new Lesson({
-      course: courseId,
-      title: title.trim(),
-      description: description || "",
-      videoUrl: videoUrl || "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      duration: duration || "15 mins",
-      lessonNumber: lessonNum,
+      course,
+      title,
+      description,
+      videoUrl,
+      duration,
+      lessonNumber
     });
 
-    const saved = await lesson.save();
+    await lesson.save();
+
+    const result =
+      await Lesson.findById(lesson._id)
+        .populate("course");
 
     res.status(201).json({
       success: true,
       message: "Lesson created successfully",
-      lesson: saved,
+      lesson: result
     });
+
   } catch (error) {
-    console.error("Error creating lesson:", error);
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-// GET /api/lessons/course/:courseId - Get all lessons for a course
-exports.getLessonsByCourse = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(courseId)) {
-      return res.status(400).json({ success: false, message: "Invalid Course ID format" });
-    }
-
-    const lessons = await Lesson.find({ course: courseId }).sort({ lessonNumber: 1 });
-
-    res.status(200).json({ success: true, count: lessons.length, lessons });
-  } catch (error) {
-    console.error("Error fetching lessons:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// GET /api/lessons/:id - Get a single lesson by ID
-exports.getLessonById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid Lesson ID format" });
-    }
-
-    const lesson = await Lesson.findById(id).populate("course", "title category");
-    if (!lesson) {
-      return res.status(404).json({ success: false, message: "Lesson not found" });
-    }
-
-    res.status(200).json({ success: true, lesson });
-  } catch (error) {
-    console.error("Error fetching lesson:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// PUT /api/lessons/:id - Update a lesson
-exports.updateLesson = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid Lesson ID format" });
-    }
-
-    const updated = await Lesson.findByIdAndUpdate(
-      id,
-      { $set: req.body },
-      { new: true, runValidators: true }
+    console.error(
+      "Create Lesson Error:",
+      error
     );
 
-    if (!updated) {
-      return res.status(404).json({ success: false, message: "Lesson not found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Lesson updated successfully",
-      lesson: updated,
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
     });
-  } catch (error) {
-    console.error("Error updating lesson:", error);
-    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// DELETE /api/lessons/:id - Delete a lesson
-exports.deleteLesson = async (req, res) => {
+
+// =====================================
+// DELETE LESSON
+// =====================================
+const deleteLesson = async (req, res) => {
   try {
-    const { id } = req.params;
+    const lesson =
+      await Lesson.findByIdAndDelete(
+        req.params.id
+      );
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid Lesson ID format" });
-    }
-
-    const deleted = await Lesson.findByIdAndDelete(id);
-    if (!deleted) {
-      return res.status(404).json({ success: false, message: "Lesson not found" });
+    if (!lesson) {
+      return res.status(404).json({
+        success: false,
+        message: "Lesson not found"
+      });
     }
 
     res.status(200).json({
       success: true,
-      message: "Lesson deleted successfully",
-      deletedId: id,
+      message: "Lesson deleted successfully"
     });
+
   } catch (error) {
-    console.error("Error deleting lesson:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error(
+      "Delete Lesson Error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
   }
+};
+
+
+module.exports = {
+  getLessons,
+  getLessonsByCourse,
+  getLessonById,
+  createLesson,
+  deleteLesson
 };

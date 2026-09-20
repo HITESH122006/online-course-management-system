@@ -1,181 +1,590 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Loading from "../../components/Loading";
-import ErrorMessage from "../../components/ErrorMessage";
 
-export default function StudentDashboard() {
+export default function Dashboard() {
   const router = useRouter();
+
   const [student, setStudent] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [courseError, setCourseError] = useState("");
 
   useEffect(() => {
-    const stored = localStorage.getItem("studentUser");
-    if (!stored) {
+    const savedStudent = localStorage.getItem("student");
+
+    if (!savedStudent) {
       router.push("/login");
       return;
     }
+
     try {
-      const parsed = JSON.parse(stored);
-      setStudent(parsed);
-      fetchEnrollments(parsed._id);
-    } catch (e) {
+      const studentData = JSON.parse(savedStudent);
+
+      setStudent(studentData);
+      loadEnrollments(studentData);
+    } catch (error) {
+      console.error("Invalid student data:", error);
+
+      localStorage.removeItem("student");
       router.push("/login");
     }
-  }, []);
+  }, [router]);
 
-  const fetchEnrollments = async (studentId) => {
-    setLoading(true);
-    setError("");
+  const loadEnrollments = async (studentData) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/enrollments/student/${studentId}`);
-      if (!res.ok) throw new Error("Failed to fetch student enrollments");
-      const data = await res.json();
-      setEnrollments(data.enrollments || []);
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      setError("Unable to load enrolled courses from MongoDB. Please check backend connection.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      setLoadingCourses(true);
+      setCourseError("");
 
-  const handleCancelEnrollment = async (enrollmentId, courseTitle) => {
-    if (!confirm(`Are you sure you want to drop your enrollment in "${courseTitle}"?`)) {
-      return;
-    }
+      const studentId =
+        studentData.id || studentData._id;
 
-    try {
-      const res = await fetch(`http://localhost:5000/api/enrollments/${enrollmentId}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess(`Successfully dropped enrollment in "${courseTitle}". MongoDB updated!`);
-        if (student) fetchEnrollments(student._id);
-      } else {
-        setError(data.message || "Failed to drop enrollment.");
+      if (!studentId) {
+        setCourseError("Student ID is missing.");
+        return;
       }
-    } catch (err) {
-      setError("Error communicating with backend server.");
+
+      const response = await fetch(
+        `http://localhost:5000/api/enrollments/student/${studentId}`
+      );
+
+      const data = await response.json();
+
+      console.log("Enrollment API response:", data);
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to load courses"
+        );
+      }
+
+      setEnrollments(data.enrollments || []);
+    } catch (error) {
+      console.error(
+        "Enrollment loading error:",
+        error
+      );
+
+      setCourseError(
+        error.message ||
+          "Unable to load enrolled courses."
+      );
+    } finally {
+      setLoadingCourses(false);
     }
   };
 
-  if (loading && !student) return <Loading message="Loading student portal..." />;
+  const handleLogout = () => {
+    localStorage.removeItem("student");
+    router.push("/login");
+  };
+
+  const openLessons = (courseId) => {
+    if (!courseId) {
+      alert("Course ID is missing.");
+      return;
+    }
+
+    router.push(
+      `/lessons?courseId=${courseId}`
+    );
+  };
+
+  if (!student) {
+    return (
+      <div style={styles.center}>
+        <h2>Loading Dashboard...</h2>
+      </div>
+    );
+  }
 
   return (
-    <div className="page-container">
-      {/* Student Welcome Header */}
-      <div className="dashboard-header">
-        <div className="student-profile-strip">
-          <div className="student-avatar-big">👨‍🎓</div>
-          <div>
-            <span className="badge-welcome">Student Dashboard</span>
-            <h1 className="dash-title">Welcome back, {student?.name}!</h1>
-            <p className="dash-sub">
-              📧 {student?.email} {student?.phone && `| 📞 ${student.phone}`}
+    <div style={styles.container}>
+
+      {/* HEADER */}
+
+      <header style={styles.header}>
+
+        <h1>
+          Online Course Management System
+        </h1>
+
+        <button
+          onClick={handleLogout}
+          style={styles.headerButton}
+        >
+          Logout
+        </button>
+
+      </header>
+
+
+      {/* MAIN CONTENT */}
+
+      <main style={styles.main}>
+
+        <h2>
+          Student Dashboard
+        </h2>
+
+        <p>
+          Welcome, {student.name}!
+        </p>
+
+
+        {/* STUDENT INFORMATION */}
+
+        <div style={styles.infoCard}>
+
+          <h3>
+            Student Information
+          </h3>
+
+          <p>
+            <strong>Student ID:</strong>{" "}
+            {student.studentId}
+          </p>
+
+          <p>
+            <strong>Name:</strong>{" "}
+            {student.name}
+          </p>
+
+          <p>
+            <strong>Email:</strong>{" "}
+            {student.email}
+          </p>
+
+          <p>
+            <strong>Phone:</strong>{" "}
+            {student.phone || "Not provided"}
+          </p>
+
+        </div>
+
+
+        {/* OPTIONS */}
+
+        <div style={styles.optionsGrid}>
+
+          {/* COURSES */}
+
+          <div
+            onClick={() =>
+              router.push("/courses")
+            }
+            style={styles.card}
+          >
+
+            <h3>
+              Courses
+            </h3>
+
+            <p>
+              View available courses
             </p>
+
           </div>
+
+
+          {/* MY ENROLLMENTS */}
+
+          <div
+            onClick={() =>
+              router.push("/enrollments")
+            }
+            style={styles.card}
+          >
+
+            <h3>
+              My Enrollments
+            </h3>
+
+            <p>
+              View enrolled courses
+            </p>
+
+          </div>
+
+
+          {/* PROGRESS */}
+
+          <div
+            onClick={() =>
+              router.push("/analytics")
+            }
+            style={styles.card}
+          >
+
+            <h3>
+              Progress
+            </h3>
+
+            <p>
+              View learning progress
+            </p>
+
+          </div>
+
         </div>
 
-        <div className="dash-quick-stats">
-          <div className="mini-stat">
-            <span className="num">{enrollments.length}</span>
-            <span className="lbl">Enrolled Courses</span>
-          </div>
-          <div className="mini-stat">
-            <span className="num">
-              {enrollments.filter((e) => e.status === "Completed" || e.progress === 100).length}
-            </span>
-            <span className="lbl">Completed</span>
-          </div>
-        </div>
-      </div>
 
-      {error && <ErrorMessage message={error} onDismiss={() => setError("")} />}
-      {success && <ErrorMessage message={success} type="success" onDismiss={() => setSuccess("")} />}
+        {/* COURSE LESSONS */}
 
-      {/* Enrolled Courses Section */}
-      <div className="dashboard-section">
-        <div className="section-header">
-          <div>
-            <h2>My Enrolled Courses ({enrollments.length})</h2>
-            <p className="section-sub">Queried from MongoDB <code>enrollments</code> linked to <code>courses</code></p>
-          </div>
-          <Link href="/courses" className="btn-primary">
-            + Enroll in More Courses
-          </Link>
-        </div>
+        <section style={styles.lessonsSection}>
 
-        {loading ? (
-          <Loading message="Syncing enrollments from MongoDB Atlas..." />
-        ) : enrollments.length === 0 ? (
-          <div className="empty-box">
-            <h3>You haven't enrolled in any courses yet</h3>
-            <p>Explore our catalog of web development, database, and AI courses to start learning.</p>
-            <Link href="/courses" className="btn-primary" style={{ marginTop: "12px", display: "inline-block" }}>
-              Explore Available Courses
-            </Link>
-          </div>
-        ) : (
-          <div className="enrollments-grid">
-            {enrollments.map((item) => {
-              const course = item.course;
-              if (!course) return null;
-              return (
-                <div key={item._id} className="enrolled-course-card">
-                  <div className="enrolled-card-top">
-                    <img
-                      src={course.image || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60"}
-                      alt={course.title}
-                      className="enrolled-thumb"
-                    />
-                    <div className="enrolled-info">
-                      <span className="card-category-badge">{course.category}</span>
-                      <h3 className="enrolled-title">{course.title}</h3>
-                      <span className="enrolled-date">
-                        Enrolled on: {new Date(item.enrollmentDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
+          <h2>
+            Course Lessons
+          </h2>
 
-                  {/* Progress Bar */}
-                  <div className="progress-block">
-                    <div className="progress-labels">
-                      <span>Course Progress</span>
-                      <span className="progress-perc">{item.progress || 0}%</span>
-                    </div>
-                    <div className="progress-track">
+          <p style={styles.subtitle}>
+            Continue learning from your
+            enrolled courses.
+          </p>
+
+
+          {/* LOADING */}
+
+          {loadingCourses && (
+
+            <div style={styles.messageCard}>
+
+              <h3>
+                Loading Course Lessons...
+              </h3>
+
+              <p>
+                Please wait.
+              </p>
+
+            </div>
+
+          )}
+
+
+          {/* ERROR */}
+
+          {!loadingCourses &&
+            courseError && (
+
+              <div style={styles.error}>
+
+                <h3>
+                  Unable to Load Courses
+                </h3>
+
+                <p>
+                  {courseError}
+                </p>
+
+              </div>
+
+          )}
+
+
+          {/* NO COURSES */}
+
+          {!loadingCourses &&
+            !courseError &&
+            enrollments.length === 0 && (
+
+              <div style={styles.messageCard}>
+
+                <h3>
+                  No Courses Enrolled
+                </h3>
+
+                <p>
+                  You have not enrolled
+                  in any course yet.
+                </p>
+
+                <button
+                  onClick={() =>
+                    router.push("/courses")
+                  }
+                  style={styles.primaryButton}
+                >
+                  Browse Courses
+                </button>
+
+              </div>
+
+          )}
+
+
+          {/* ENROLLED COURSES */}
+
+          {!loadingCourses &&
+            !courseError &&
+            enrollments.length > 0 && (
+
+              <div style={styles.courseGrid}>
+
+                {enrollments.map(
+                  (enrollment) => {
+
+                    const course =
+                      enrollment.course;
+
+                    const courseId =
+                      course?._id ||
+                      course?.id;
+
+                    const progress =
+                      enrollment.progress || 0;
+
+                    return (
+
                       <div
-                        className="progress-fill"
-                        style={{ width: `${item.progress || 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
+                        key={
+                          enrollment._id
+                        }
+                        style={styles.courseCard}
+                      >
 
-                  <div className="enrolled-actions">
-                    <Link href={`/courses/${course._id}`} className="btn-continue">
-                      Continue Learning →
-                    </Link>
-                    <button
-                      onClick={() => handleCancelEnrollment(item._id, course.title)}
-                      className="btn-drop"
-                      title="Cancel enrollment in MongoDB"
-                    >
-                      Drop
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                        <h3>
+                          {course?.title ||
+                            "Course"}
+                        </h3>
+
+                        <p style={styles.description}>
+                          {course?.description ||
+                            "Continue learning this course."}
+                        </p>
+
+
+                        {/* PROGRESS */}
+
+                        <div
+                          style={{
+                            marginTop: "20px"
+                          }}
+                        >
+
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent:
+                                "space-between",
+                              marginBottom: "7px"
+                            }}
+                          >
+
+                            <span>
+                              Progress
+                            </span>
+
+                            <strong>
+                              {progress}%
+                            </strong>
+
+                          </div>
+
+
+                          <div
+                            style={
+                              styles.progressBackground
+                            }
+                          >
+
+                            <div
+                              style={{
+                                ...styles.progressBar,
+                                width:
+                                  `${progress}%`
+                              }}
+                            />
+
+                          </div>
+
+                        </div>
+
+
+                        {/* VIEW LESSONS */}
+
+                        <button
+                          onClick={() =>
+                            openLessons(
+                              courseId
+                            )
+                          }
+                          style={
+                            styles.lessonButton
+                          }
+                        >
+                          📚 View Course Lessons
+                        </button>
+
+                      </div>
+
+                    );
+                  }
+                )}
+
+              </div>
+
+          )}
+
+        </section>
+
+      </main>
+
     </div>
   );
 }
+
+
+/* ========================= */
+/* STYLES */
+/* ========================= */
+
+const styles = {
+
+  container: {
+    minHeight: "100vh",
+    background: "#f4f7fb"
+  },
+
+  header: {
+    background: "#2563eb",
+    color: "white",
+    padding: "20px 30px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+
+  headerButton: {
+    background: "white",
+    color: "#2563eb",
+    border: "none",
+    padding: "10px 20px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold"
+  },
+
+  main: {
+    maxWidth: "1000px",
+    margin: "40px auto",
+    padding: "20px"
+  },
+
+  infoCard: {
+    background: "white",
+    padding: "25px",
+    marginTop: "25px",
+    borderRadius: "10px",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)"
+  },
+
+  optionsGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(3, 1fr)",
+    gap: "20px",
+    marginTop: "30px"
+  },
+
+  card: {
+    background: "white",
+    padding: "25px",
+    borderRadius: "10px",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)",
+    cursor: "pointer"
+  },
+
+  lessonsSection: {
+    marginTop: "40px"
+  },
+
+  subtitle: {
+    color: "#666",
+    marginBottom: "25px"
+  },
+
+  messageCard: {
+    background: "white",
+    padding: "35px",
+    borderRadius: "10px",
+    textAlign: "center",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)"
+  },
+
+  error: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    padding: "20px",
+    borderRadius: "10px"
+  },
+
+  courseGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, 1fr)",
+    gap: "20px"
+  },
+
+  courseCard: {
+    background: "white",
+    padding: "25px",
+    borderRadius: "10px",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)"
+  },
+
+  description: {
+    color: "#666",
+    lineHeight: "1.5"
+  },
+
+  progressBackground: {
+    width: "100%",
+    height: "10px",
+    background: "#e5e7eb",
+    borderRadius: "10px",
+    overflow: "hidden"
+  },
+
+  progressBar: {
+    height: "100%",
+    background: "#2563eb",
+    borderRadius: "10px"
+  },
+
+  lessonButton: {
+    width: "100%",
+    marginTop: "20px",
+    background: "#16a34a",
+    color: "white",
+    border: "none",
+    padding: "12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "15px"
+  },
+
+  primaryButton: {
+    marginTop: "20px",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "12px 22px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold"
+  },
+
+  center: {
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  }
+};

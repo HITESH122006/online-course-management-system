@@ -1,19 +1,29 @@
 const dns = require("dns");
 
-// Ensure DNS resolution works reliably for MongoDB Atlas SRV records on Windows
+// ======================================================
+// DNS CONFIGURATION
+// Helps MongoDB Atlas SRV DNS resolution on Windows
+// ======================================================
 try {
   dns.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch (e) {
-  console.log("DNS setServers notice:", e.message);
+} catch (error) {
+  console.log("DNS configuration notice:", error.message);
 }
 
+
+// ======================================================
+// IMPORT PACKAGES
+// ======================================================
 require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 
-// Import route modules
+
+// ======================================================
+// IMPORT ROUTES
+// ======================================================
 const courseRoutes = require("./routes/courseRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const instructorRoutes = require("./routes/instructorRoutes");
@@ -22,63 +32,152 @@ const lessonRoutes = require("./routes/lessonRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 
 
+// ======================================================
+// CREATE EXPRESS APP
+// ======================================================
 const app = express();
+
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
+
 app.use(express.json());
 
-// Root health & info route
+
+// ======================================================
+// ROOT / HEALTH CHECK
+// ======================================================
 app.get("/", (req, res) => {
-  res.json({
+  res.status(200).json({
     project: "Online Course Management System",
     status: "Running",
-    mongoStatus: mongoose.connection.readyState === 1 ? "Connected" : "Connecting/Disconnected",
-    documentation: "/api/courses, /api/students, /api/instructors, /api/enrollments, /api/lessons, /api/analytics",
+    mongoStatus:
+      mongoose.connection.readyState === 1
+        ? "Connected"
+        : "Connecting/Disconnected",
+    documentation:
+      "/api/courses, /api/students, /api/instructors, /api/enrollments, /api/lessons, /api/analytics"
   });
 });
 
-// API Routes
+
+// ======================================================
+// API ROUTES
+// ======================================================
+
+// Courses
 app.use("/api/courses", courseRoutes);
+
+// Students
 app.use("/api/students", studentRoutes);
+
+// Instructors
 app.use("/api/instructors", instructorRoutes);
+
+// Enrollments
 app.use("/api/enrollments", enrollmentRoutes);
+
+// Lessons
 app.use("/api/lessons", lessonRoutes);
+
+// Analytics
 app.use("/api/analytics", analyticsRoutes);
 
 
-// 404 handler for unknown routes
+// ======================================================
+// 404 ROUTE
+// ======================================================
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`
+  });
 });
 
-// Global error handling middleware
+
+// ======================================================
+// GLOBAL ERROR HANDLER
+// ======================================================
 app.use((err, req, res, next) => {
-  console.error("Unhandled Server Error:", err.stack);
-  res.status(500).json({ success: false, message: "Internal server error: " + err.message });
+  console.error("Unhandled Server Error:");
+  console.error(err);
+
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+    error: err.message
+  });
 });
 
-// MongoDB Atlas connection
+
+// ======================================================
+// MONGODB CONNECTION
+// ======================================================
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  console.error("ERROR: MONGO_URI is not defined in backend/.env file!");
+  console.error(
+    "ERROR: MONGO_URI is not defined in backend/.env file."
+  );
+} else {
+  mongoose
+    .connect(MONGO_URI)
+    .then(() => {
+      console.log("=================================");
+      console.log("MongoDB Connected Successfully");
+      console.log("=================================");
+    })
+    .catch((error) => {
+      console.error("=================================");
+      console.error("MongoDB Connection Error");
+      console.error("=================================");
+      console.error(error.message);
+      console.error(
+        "If using MongoDB Atlas, check your Network Access/IP whitelist."
+      );
+    });
 }
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log("MongoDB Connected Successfully");
-  })
-  .catch((error) => {
-    console.error("MongoDB Connection Error:", error.message);
-    console.log("NOTE: If connection failed due to IP whitelist, please add 0.0.0.0/0 to MongoDB Atlas Network Access.");
-  });
 
-// Always start express server on PORT 5000 so frontend can connect
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// ======================================================
+// MONGODB CONNECTION EVENTS
+// ======================================================
+mongoose.connection.on("connected", () => {
+  console.log("MongoDB connection established");
 });
 
+mongoose.connection.on("error", (error) => {
+  console.error("MongoDB error:", error.message);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.log("MongoDB disconnected");
+});
+
+
+// ======================================================
+// START SERVER
+// ======================================================
+app.listen(PORT, () => {
+  console.log("=================================");
+  console.log(
+    `Server running on http://localhost:${PORT}`
+  );
+  console.log("=================================");
+});
+
+
+// ======================================================
+// EXPORT APP
+// ======================================================
 module.exports = app;

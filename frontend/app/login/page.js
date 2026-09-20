@@ -1,129 +1,519 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ErrorMessage from "../../components/ErrorMessage";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     setError("");
     setSuccess("");
-    setLoading(true);
+
+    // Check fields
+    if (!email || !password) {
+      setError(
+        "Please enter email and password."
+      );
+      return;
+    }
 
     try {
-      const res = await fetch("http://localhost:5000/api/students/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      setLoading(true);
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.message || "Invalid email or password");
-      } else {
-        setSuccess("Login successful! Redirecting to student dashboard...");
-        localStorage.setItem("studentUser", JSON.stringify(data.student));
-        localStorage.setItem("studentToken", data.token);
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1000);
+      console.log("Sending login request...");
+
+      const response = await fetch(
+        "http://localhost:5000/api/students/login",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            email: email.trim(),
+            password: password
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "Login API Response:",
+        data
+      );
+
+      // Login failed
+      if (!response.ok) {
+        setError(
+          data.message ||
+            "Invalid email or password."
+        );
+
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Failed to connect to backend server. Make sure 'node server.js' is running.");
-    } finally {
+
+      // Check student data
+      if (!data.student) {
+        setError(
+          "Login successful, but student data was not received."
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      console.log(
+        "Student received from backend:",
+        data.student
+      );
+
+      // Get MongoDB ID
+      const studentId =
+        data.student.id ||
+        data.student._id;
+
+      console.log(
+        "Student MongoDB ID:",
+        studentId
+      );
+
+      // Check MongoDB ID
+      if (
+        !studentId ||
+        typeof studentId !== "string" ||
+        studentId.length !== 24
+      ) {
+        setError(
+          "Invalid student ID received from server."
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      // Create student object
+      const studentData = {
+        id: studentId,
+        studentId:
+          data.student.studentId,
+        name: data.student.name,
+        email: data.student.email,
+        phone:
+          data.student.phone || ""
+      };
+
+      console.log(
+        "Student data to save:",
+        studentData
+      );
+
+      // SAVE STUDENT IN LOCAL STORAGE
+      localStorage.setItem(
+        "student",
+        JSON.stringify(studentData)
+      );
+
+      // Verify localStorage
+      const savedStudent =
+        localStorage.getItem("student");
+
+      console.log(
+        "Student saved in localStorage:",
+        savedStudent
+      );
+
+      if (!savedStudent) {
+        setError(
+          "Unable to save login information."
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      setSuccess(
+        "Login successful! Redirecting..."
+      );
+
+      setLoading(false);
+
+      // Go to dashboard
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 500);
+
+    } catch (error) {
+      console.error(
+        "Login Error:",
+        error
+      );
+
+      setError(
+        "Unable to connect to server. Make sure the backend is running."
+      );
+
       setLoading(false);
     }
   };
 
-  const handleDemoFill = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword("student123");
-  };
-
   return (
-    <div className="auth-page-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <span className="auth-badge">Student Portal</span>
-          <h2>Sign In to Your Account</h2>
-          <p>Access your enrolled MongoDB courses and track learning progress</p>
-        </div>
+    <div style={styles.container}>
 
-        {error && <ErrorMessage message={error} onDismiss={() => setError("")} />}
-        {success && <ErrorMessage message={success} type="success" />}
+      <div style={styles.card}>
 
-        <form onSubmit={handleLogin} className="auth-form">
-          <div className="form-group">
-            <label>Email Address</label>
+        {/* TITLE */}
+
+        <h1 style={styles.title}>
+          Online Course Management System
+        </h1>
+
+        <h2 style={styles.subtitle}>
+          Student Login
+        </h2>
+
+        <p style={styles.description}>
+          Login to access your courses and
+          learning dashboard.
+        </p>
+
+        {/* ERROR */}
+
+        {error && (
+          <div style={styles.error}>
+            {error}
+          </div>
+        )}
+
+        {/* SUCCESS */}
+
+        {success && (
+          <div style={styles.success}>
+            {success}
+          </div>
+        )}
+
+        {/* FORM */}
+
+        <form onSubmit={handleLogin}>
+
+          {/* EMAIL */}
+
+          <div style={styles.formGroup}>
+
+            <label style={styles.label}>
+              Email Address
+            </label>
+
             <input
               type="email"
-              placeholder="student@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
+              placeholder="Enter your email"
+              style={styles.input}
+              disabled={loading}
             />
+
           </div>
 
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+          {/* PASSWORD */}
+
+          <div style={styles.formGroup}>
+
+            <label style={styles.label}>
+              Password
+            </label>
+
+            <div
+              style={
+                styles.passwordContainer
+              }
+            >
+
+              <input
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                value={password}
+                onChange={(e) =>
+                  setPassword(
+                    e.target.value
+                  )
+                }
+                placeholder="Enter your password"
+                style={styles.passwordInput}
+                disabled={loading}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(
+                    !showPassword
+                  )
+                }
+                style={styles.eyeButton}
+              >
+
+                {showPassword ? (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"
+                    />
+
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="3"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="M3 3l18 18"
+                    />
+
+                    <path
+                      d="M10.58 10.58a2 2 0 0 0 2.83 2.83"
+                    />
+
+                    <path
+                      d="M9.88 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.6 18.6 0 0 1-3.17 4.11"
+                    />
+
+                    <path
+                      d="M6.61 6.61C3.68 8.58 2 12 2 12s3 7 10 7a10.9 10.9 0 0 0 4.39-.91"
+                    />
+                  </svg>
+                )}
+
+              </button>
+
+            </div>
+
           </div>
 
-          <button type="submit" disabled={loading} className="btn-auth-submit">
-            {loading ? "Verifying with MongoDB..." : "Sign In"}
+          {/* LOGIN BUTTON */}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              ...styles.loginButton,
+              opacity: loading
+                ? 0.7
+                : 1
+            }}
+          >
+
+            {loading
+              ? "Logging in..."
+              : "Login"}
+
           </button>
+
         </form>
 
-        {/* Quick Demo Credentials Box for College Viva */}
-        <div className="demo-credentials-box">
-          <h4>💡 Quick Demo Accounts (1-Click Test for Viva)</h4>
-          <p>Click any pre-seeded student account below:</p>
-          <div className="demo-chips">
-            <button
-              type="button"
-              onClick={() => handleDemoFill("rahul.sharma@example.com")}
-              className="chip-btn"
-            >
-              Rahul Sharma
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoFill("priya.patel@example.com")}
-              className="chip-btn"
-            >
-              Priya Patel
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoFill("aarav.d@example.com")}
-              className="chip-btn"
-            >
-              Aarav Deshmukh
-            </button>
-          </div>
-          <span className="pass-hint">Demo Password: <code>student123</code></span>
-        </div>
+        {/* REGISTER */}
 
-        <div className="auth-footer">
-          Don't have an account? <Link href="/register">Register as New Student</Link>
-        </div>
+        <p style={styles.registerText}>
+
+          Don't have an account?{" "}
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/register")
+            }
+            style={styles.registerButton}
+          >
+            Register
+          </button>
+
+        </p>
+
       </div>
+
     </div>
   );
 }
+
+
+/* =========================
+   STYLES
+========================= */
+
+const styles = {
+
+  container: {
+    minHeight: "100vh",
+    background: "#f4f7fb",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "20px"
+  },
+
+  card: {
+    width: "100%",
+    maxWidth: "450px",
+    background: "white",
+    padding: "35px",
+    borderRadius: "12px",
+    boxShadow:
+      "0 4px 15px rgba(0,0,0,0.1)"
+  },
+
+  title: {
+    textAlign: "center",
+    color: "#2563eb",
+    fontSize: "24px",
+    marginBottom: "10px"
+  },
+
+  subtitle: {
+    textAlign: "center",
+    color: "#222",
+    fontSize: "26px",
+    marginBottom: "8px"
+  },
+
+  description: {
+    textAlign: "center",
+    color: "#666",
+    marginBottom: "25px"
+  },
+
+  formGroup: {
+    marginBottom: "20px"
+  },
+
+  label: {
+    display: "block",
+    marginBottom: "7px",
+    fontWeight: "600",
+    color: "#333"
+  },
+
+  input: {
+    width: "100%",
+    padding: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "6px",
+    fontSize: "16px",
+    boxSizing: "border-box"
+  },
+
+  passwordContainer: {
+    position: "relative",
+    width: "100%"
+  },
+
+  passwordInput: {
+    width: "100%",
+    padding: "12px 45px 12px 12px",
+    border: "1px solid #ccc",
+    borderRadius: "6px",
+    fontSize: "16px",
+    boxSizing: "border-box"
+  },
+
+  eyeButton: {
+    position: "absolute",
+    right: "10px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#555",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+
+  loginButton: {
+    width: "100%",
+    padding: "13px",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "16px",
+    fontWeight: "600"
+  },
+
+  error: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    padding: "12px",
+    borderRadius: "6px",
+    marginBottom: "20px",
+    fontSize: "14px"
+  },
+
+  success: {
+    background: "#dcfce7",
+    color: "#166534",
+    padding: "12px",
+    borderRadius: "6px",
+    marginBottom: "20px",
+    fontSize: "14px"
+  },
+
+  registerText: {
+    textAlign: "center",
+    marginTop: "25px",
+    color: "#666"
+  },
+
+  registerButton: {
+    background: "none",
+    border: "none",
+    color: "#2563eb",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "15px"
+  }
+
+};

@@ -1,229 +1,430 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
-import Link from "next/link";
-import Loading from "../../../components/Loading";
-import ErrorMessage from "../../../components/ErrorMessage";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 
-export default function CourseDetailsPage({ params }) {
-  const unwrappedParams = use(params);
-  const courseId = unwrappedParams.id;
+export default function CourseDetailsPage() {
+  const params = useParams();
+  const router = useRouter();
 
   const [course, setCourse] = useState(null);
-  const [lessons, setLessons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
-  const [enrolling, setEnrolling] = useState(false);
   const [student, setStudent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [enrolling, setEnrolling] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
+  // Get logged-in student
   useEffect(() => {
-    // Check logged in student
-    const stored = localStorage.getItem("studentUser");
-    if (stored) {
-      try {
-        setStudent(JSON.parse(stored));
-      } catch (e) {}
-    }
-    fetchCourseDetails();
-  }, [courseId]);
+    const savedStudent = localStorage.getItem("student");
 
-  const fetchCourseDetails = async () => {
-    setLoading(true);
-    setError("");
+    if (!savedStudent) {
+      router.push("/login");
+      return;
+    }
+
     try {
-      const res = await fetch(`http://localhost:5000/api/courses/${courseId}`);
-      if (!res.ok) throw new Error("Course not found or server error");
-      const data = await res.json();
-      if (data.success && data.course) {
-        setCourse(data.course);
-        setLessons(data.lessons || []);
-      } else {
-        // Direct object fallback
-        setCourse(data);
-      }
-    } catch (err) {
-      console.error("Course details fetch error:", err);
-      setError("Failed to load course details from MongoDB Atlas.");
-    } finally {
-      setLoading(false);
+      const studentData = JSON.parse(savedStudent);
+      setStudent(studentData);
+    } catch (error) {
+      console.error("Student data error:", error);
+      localStorage.removeItem("student");
+      router.push("/login");
     }
-  };
+  }, [router]);
 
-  const handleEnroll = async () => {
-    setSuccessMsg("");
-    setError("");
-
-    let studentId = student?._id;
-
-    // If no student logged in, prompt or auto-select demo student
-    if (!studentId) {
-      try {
-        // Fetch first student from database for seamless demo experience
-        const studentsRes = await fetch("http://localhost:5000/api/students");
-        const studentsData = await studentsRes.json();
-        if (studentsData.students && studentsData.students.length > 0) {
-          studentId = studentsData.students[0]._id;
-          // Set as active session
-          localStorage.setItem("studentUser", JSON.stringify(studentsData.students[0]));
-          setStudent(studentsData.students[0]);
-        } else {
-          setError("Please login or register first to enroll in courses.");
-          return;
-        }
-      } catch (e) {
-        setError("Please login to enroll in this course.");
+  // Get course details
+  useEffect(() => {
+    const getCourse = async () => {
+      if (!params.id) {
         return;
       }
+
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          `http://localhost:5000/api/courses/${params.id}`
+        );
+
+        const data = await response.json();
+
+        console.log("Course response:", data);
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Unable to load course"
+          );
+        }
+
+        setCourse(data.course || data);
+
+      } catch (error) {
+        console.error("Course error:", error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getCourse();
+  }, [params.id]);
+
+  // Enroll student
+  const handleEnroll = async () => {
+    if (!student) {
+      router.push("/login");
+      return;
     }
 
-    setEnrolling(true);
-    try {
-      const res = await fetch("http://localhost:5000/api/enrollments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId,
-          courseId,
-        }),
-      });
+    if (!course) {
+      setError("Course information is not available.");
+      return;
+    }
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.message || "Enrollment failed. Duplicate enrollment prevention may be active.");
-      } else {
-        setSuccessMsg(data.message || "Successfully enrolled in course!");
-        // Refresh course to see updated enrollment count
-        fetchCourseDetails();
+    const studentId = student.id || student._id;
+    const courseId = course._id || course.id || params.id;
+
+    console.log("Student ID:", studentId);
+    console.log("Course ID:", courseId);
+
+    if (!studentId) {
+      setError(
+        "Student ID not found. Please logout and login again."
+      );
+      return;
+    }
+
+    if (!courseId) {
+      setError("Course ID not found.");
+      return;
+    }
+
+    try {
+      setEnrolling(true);
+      setMessage("");
+      setError("");
+
+      const response = await fetch(
+        "http://localhost:5000/api/enrollments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            studentId: studentId,
+            courseId: courseId
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Enrollment response:", data);
+
+      if (!response.ok) {
+        setError(
+          data.message || "Enrollment failed"
+        );
+        return;
       }
-    } catch (err) {
-      console.error("Enrollment error:", err);
-      setError("Network error during enrollment. Ensure backend is running.");
+
+      setMessage(
+        data.message || "Course enrollment successful!"
+      );
+
+      // Go to My Enrollments
+      setTimeout(() => {
+        router.push("/enrollments");
+      }, 1000);
+
+    } catch (error) {
+      console.error("Enrollment error:", error);
+
+      setError(
+        "Unable to connect to the enrollment server."
+      );
     } finally {
       setEnrolling(false);
     }
   };
 
-  if (loading) return <Loading message="Loading course curriculum from MongoDB..." />;
-  if (error && !course) return <div className="page-container"><ErrorMessage message={error} /></div>;
-  if (!course) return <div className="page-container"><p>Course not found.</p></div>;
+  // Loading
+  if (loading) {
+    return (
+      <div style={styles.center}>
+        <h2>Loading Course...</h2>
+      </div>
+    );
+  }
 
-  const instructorName =
-    course.instructor && typeof course.instructor === "object"
-      ? course.instructor.name
-      : course.instructorName || "Senior Instructor";
+  // Course error
+  if (error && !course) {
+    return (
+      <div style={styles.center}>
+        <h2>Course Not Found</h2>
 
-  const instructorSpecialization =
-    course.instructor && typeof course.instructor === "object"
-      ? course.instructor.specialization
-      : "Software Engineering & Computer Science";
+        <p style={styles.error}>
+          {error}
+        </p>
+
+        <button
+          onClick={() => router.push("/courses")}
+          style={styles.button}
+        >
+          Back to Courses
+        </button>
+      </div>
+    );
+  }
+
+  // No course
+  if (!course) {
+    return (
+      <div style={styles.center}>
+        <h2>Course Not Found</h2>
+
+        <button
+          onClick={() => router.push("/courses")}
+          style={styles.button}
+        >
+          Back to Courses
+        </button>
+      </div>
+    );
+  }
+
+  const instructor =
+    typeof course.instructor === "object"
+      ? course.instructor?.name
+      : course.instructorName ||
+        course.instructor ||
+        "Not assigned";
 
   return (
-    <div className="page-container">
-      {/* Course Header Banner */}
-      <div className="course-detail-header">
-        <div className="detail-meta-tags">
-          <span className="card-category-badge">{course.category}</span>
-          <span className={`card-level-badge level-${(course.level || "Beginner").toLowerCase()}`}>
-            {course.level || "Beginner"} Level
-          </span>
-          <span className="rating-pill">⭐ {course.rating ? Number(course.rating).toFixed(1) : "4.5"} Rating</span>
-        </div>
+    <div style={styles.container}>
 
-        <h1 className="detail-title">{course.title}</h1>
-        <p className="detail-desc">{course.description}</p>
+      {/* Header */}
+      <header style={styles.header}>
+        <h1>
+          Online Course Management System
+        </h1>
 
-        <div className="detail-instructor-strip">
-          <div className="instructor-avatar">👨‍🏫</div>
-          <div>
-            <div className="inst-name">{instructorName}</div>
-            <div className="inst-spec">{instructorSpecialization}</div>
-          </div>
-        </div>
-      </div>
+        <button
+          onClick={() => router.push("/dashboard")}
+          style={styles.dashboardButton}
+        >
+          Dashboard
+        </button>
+      </header>
 
-      {error && <ErrorMessage message={error} onDismiss={() => setError("")} />}
-      {successMsg && <ErrorMessage message={successMsg} type="success" onDismiss={() => setSuccessMsg("")} />}
+      {/* Main */}
+      <main style={styles.main}>
 
-      {/* Main Grid */}
-      <div className="detail-layout">
-        {/* Left Column: Syllabus & Lessons */}
-        <div className="detail-main">
-          <div className="content-box">
-            <h2>Course Curriculum ({lessons.length} Lessons)</h2>
-            <p className="box-sub">Structured modules stored in MongoDB <code>lessons</code> collection</p>
+        <button
+          onClick={() => router.push("/courses")}
+          style={styles.backButton}
+        >
+          ← Back to Courses
+        </button>
 
-            {lessons.length === 0 ? (
-              <div className="empty-box">
-                <p>Curriculum lessons are being updated for this course.</p>
-              </div>
-            ) : (
-              <div className="lessons-list">
-                {lessons.map((lesson, idx) => (
-                  <div key={lesson._id || idx} className="lesson-item">
-                    <div className="lesson-left">
-                      <span className="lesson-num">{lesson.lessonNumber || idx + 1}</span>
-                      <div>
-                        <h4 className="lesson-title">{lesson.title}</h4>
-                        <span className="lesson-dur">⏱️ {lesson.duration || "15 mins"}</span>
-                      </div>
-                    </div>
-                    <span className="lesson-status">Available</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <div style={styles.card}>
 
-          <div className="content-box" style={{ marginTop: "24px" }}>
-            <h2>About the Instructor</h2>
-            <p>
-              <strong>{instructorName}</strong> is an experienced educator specializing in {instructorSpecialization}.
-              All course assignments, practical lab tasks, and quizzes are verified and structured to modern industry standards.
-            </p>
-          </div>
-        </div>
+          <h2 style={styles.title}>
+            {course.title || course.name}
+          </h2>
 
-        {/* Right Column: Enrollment Card */}
-        <div className="detail-sidebar">
-          <div className="pricing-card">
-            <img
-              src={course.image || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60"}
-              alt={course.title}
-              className="pricing-img"
-            />
-            <div className="pricing-body">
-              <div className="price-huge">
-                <span className="curr">₹</span>
-                <span className="val">{course.price}</span>
-              </div>
-              <p className="guarantee">Full lifetime access & certificate included</p>
+          <p style={styles.description}>
+            {course.description ||
+              "No description available."}
+          </p>
 
-              <button
-                onClick={handleEnroll}
-                disabled={enrolling}
-                className="btn-enroll-huge"
-              >
-                {enrolling ? "Enrolling..." : "Enroll in this Course Now"}
-              </button>
+          <div style={styles.infoContainer}>
 
-              <div className="course-features-list">
-                <div className="feat-item">⏱️ Duration: <strong>{course.duration}</strong></div>
-                <div className="feat-item">👥 Enrolled: <strong>{course.studentsEnrolled || 0} students</strong></div>
-                <div className="feat-item">📊 Level: <strong>{course.level || "Beginner"}</strong></div>
-                <div className="feat-item">📱 Access: Mobile & Desktop</div>
-                <div className="feat-item">📜 Certificate of Completion</div>
-              </div>
-
-              {student && (
-                <div className="logged-info">
-                  Enrolling as: <strong>{student.name}</strong> ({student.email})
-                </div>
-              )}
+            <div style={styles.infoBox}>
+              <h3>Category</h3>
+              <p>
+                {course.category ||
+                  "Not specified"}
+              </p>
             </div>
+
+            <div style={styles.infoBox}>
+              <h3>Duration</h3>
+              <p>
+                {course.duration ||
+                  "Not specified"}
+              </p>
+            </div>
+
+            <div style={styles.infoBox}>
+              <h3>Instructor</h3>
+              <p>{instructor}</p>
+            </div>
+
           </div>
+
+          {/* Success message */}
+          {message && (
+            <div style={styles.success}>
+              {message}
+            </div>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <div style={styles.errorBox}>
+              {error}
+            </div>
+          )}
+
+          {/* Enroll button */}
+          <button
+            onClick={handleEnroll}
+            disabled={enrolling}
+            style={{
+              ...styles.enrollButton,
+              opacity: enrolling ? 0.6 : 1
+            }}
+          >
+            {enrolling
+              ? "Enrolling..."
+              : "Enroll Now"}
+          </button>
+
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    minHeight: "100vh",
+    background: "#f4f7fb"
+  },
+
+  header: {
+    background: "#2563eb",
+    color: "white",
+    padding: "18px 30px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+
+  dashboardButton: {
+    background: "white",
+    color: "#2563eb",
+    border: "none",
+    padding: "10px 18px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "600"
+  },
+
+  main: {
+    maxWidth: "950px",
+    margin: "40px auto",
+    padding: "20px"
+  },
+
+  backButton: {
+    background: "transparent",
+    border: "none",
+    color: "#2563eb",
+    fontSize: "16px",
+    cursor: "pointer",
+    marginBottom: "20px"
+  },
+
+  card: {
+    background: "white",
+    padding: "35px",
+    borderRadius: "12px",
+    boxShadow:
+      "0 4px 15px rgba(0,0,0,0.1)"
+  },
+
+  title: {
+    fontSize: "32px",
+    color: "#222",
+    marginBottom: "15px"
+  },
+
+  description: {
+    fontSize: "17px",
+    lineHeight: "1.6",
+    color: "#555",
+    marginBottom: "30px"
+  },
+
+  infoContainer: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(3, 1fr)",
+    gap: "20px",
+    marginBottom: "30px"
+  },
+
+  infoBox: {
+    background: "#f4f7fb",
+    padding: "18px",
+    borderRadius: "8px"
+  },
+
+  success: {
+    background: "#dcfce7",
+    color: "#166534",
+    padding: "12px",
+    borderRadius: "6px",
+    marginBottom: "15px",
+    textAlign: "center"
+  },
+
+  errorBox: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    padding: "12px",
+    borderRadius: "6px",
+    marginBottom: "15px",
+    textAlign: "center"
+  },
+
+  error: {
+    color: "#dc2626",
+    marginBottom: "20px"
+  },
+
+  enrollButton: {
+    width: "100%",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "14px",
+    borderRadius: "7px",
+    fontSize: "17px",
+    fontWeight: "600",
+    cursor: "pointer"
+  },
+
+  button: {
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "12px 20px",
+    borderRadius: "6px",
+    cursor: "pointer"
+  },
+
+  center: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "30px"
+  }
+};

@@ -9,7 +9,12 @@
     "seed": "node seed.js",
     "test": "echo \"No automated tests configured\" && exit 0"
   },
-  "keywords": ["mongodb", "express", "nodejs", "rest-api"],
+  "keywords": [
+    "mongodb",
+    "express",
+    "nodejs",
+    "rest-api"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -22,4 +27,3 @@
     "mongoose": "^9.10.1"
   }
 }
-

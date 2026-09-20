@@ -1,160 +1,350 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import CourseCard from "../../components/CourseCard";
-import Loading from "../../components/Loading";
-import ErrorMessage from "../../components/ErrorMessage";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function CoursesPage() {
+  const router = useRouter();
+
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState("newest");
-  const [level, setLevel] = useState("All");
-
-  const categories = [
-    "All",
-    "Web Development",
-    "Programming",
-    "Database",
-    "Data Science",
-    "Artificial Intelligence",
-    "Cloud Computing",
-  ];
 
   useEffect(() => {
     fetchCourses();
-  }, [category, sort, level]);
+  }, []);
 
-  const fetchCourses = async (searchQuery = search) => {
-    setLoading(true);
-    setError("");
+  const fetchCourses = async () => {
     try {
-      const params = new URLSearchParams();
-      if (searchQuery.trim()) params.append("search", searchQuery.trim());
-      if (category !== "All") params.append("category", category);
-      if (level !== "All") params.append("level", level);
-      if (sort) params.append("sort", sort);
+      setLoading(true);
+      setError("");
 
-      const res = await fetch(`http://localhost:5000/api/courses?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to load courses from API");
-      const data = await res.json();
-      setCourses(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Courses fetch error:", err);
-      setError("Unable to load courses from MongoDB backend. Please ensure the backend server is running.");
+      const response = await fetch(
+        "http://localhost:5000/api/courses"
+      );
+
+      const data = await response.json();
+
+      console.log("Courses API Response:", data);
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to load courses"
+        );
+      }
+
+      if (Array.isArray(data)) {
+        setCourses(data);
+      } else {
+        setCourses(data.courses || []);
+      }
+
+    } catch (error) {
+      console.error("Courses Error:", error);
+
+      setError(
+        error.message ||
+          "Unable to connect to the server."
+      );
+
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchCourses(search);
+  const handleViewCourse = (course) => {
+    const courseId =
+      course._id || course.id;
+
+    if (!courseId) {
+      alert("Course ID not found.");
+      return;
+    }
+
+    router.push(`/courses/${courseId}`);
   };
 
-  const handleReset = () => {
-    setSearch("");
-    setCategory("All");
-    setLevel("All");
-    setSort("newest");
-    fetchCourses("");
-  };
+  if (loading) {
+    return (
+      <div style={styles.center}>
+        <h2>Loading Courses...</h2>
+      </div>
+    );
+  }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Course Catalog</h1>
-          <p className="page-subtitle">
-            Browse and filter through real MongoDB course records with instantaneous condition queries
-          </p>
-        </div>
-      </div>
+    <div style={styles.container}>
 
-      {/* Filter and Search Bar */}
-      <div className="filter-bar">
-        <form onSubmit={handleSearchSubmit} className="search-form">
-          <input
-            type="text"
-            placeholder="🔍 Search course title or keyword..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="search-input"
-          />
-          <button type="submit" className="btn-search">
-            Search
+      {/* Header */}
+      <header style={styles.header}>
+
+        <h1>
+          Online Course Management System
+        </h1>
+
+        <div style={styles.headerButtons}>
+
+          <button
+            onClick={() =>
+              router.push("/dashboard")
+            }
+            style={styles.headerButton}
+          >
+            Dashboard
           </button>
-        </form>
 
-        <div className="filter-controls">
-          <div className="select-wrap">
-            <label>Category:</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            onClick={() =>
+              router.push("/enrollments")
+            }
+            style={styles.headerButton}
+          >
+            My Enrollments
+          </button>
 
-          <div className="select-wrap">
-            <label>Level:</label>
-            <select value={level} onChange={(e) => setLevel(e.target.value)}>
-              <option value="All">All Levels</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </select>
-          </div>
+        </div>
 
-          <div className="select-wrap">
-            <label>Sort By:</label>
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="newest">Newest First</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="popular">Most Popular</option>
-              <option value="rating">Highest Rated</option>
-            </select>
-          </div>
+      </header>
 
-          {(search || category !== "All" || level !== "All" || sort !== "newest") && (
-            <button onClick={handleReset} className="btn-reset">
-              Reset Filters
+      {/* Main */}
+      <main style={styles.main}>
+
+        <h2 style={styles.heading}>
+          Available Courses
+        </h2>
+
+        <p style={styles.subtitle}>
+          Browse our available courses and
+          start learning today.
+        </p>
+
+        {error && (
+          <div style={styles.error}>
+            <strong>Error:</strong> {error}
+
+            <br />
+
+            <button
+              onClick={fetchCourses}
+              style={styles.retryButton}
+            >
+              Try Again
             </button>
-          )}
-        </div>
-      </div>
-
-      {error && <ErrorMessage message={error} onDismiss={() => setError("")} />}
-
-      {/* Catalog Results */}
-      {loading ? (
-        <Loading message="Filtering MongoDB documents..." />
-      ) : courses.length === 0 ? (
-        <div className="empty-box">
-          <h3>No matching courses found</h3>
-          <p>Try searching with different keywords or reset your category filter.</p>
-          <button onClick={handleReset} className="btn-primary" style={{ marginTop: "10px" }}>
-            View All Courses
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="results-count">
-            Showing <strong>{courses.length}</strong> {courses.length === 1 ? "course" : "courses"} found in MongoDB
           </div>
-          <div className="courses-grid">
-            {courses.map((course) => (
-              <CourseCard key={course._id} course={course} />
-            ))}
+        )}
+
+        {!error && courses.length === 0 && (
+          <div style={styles.empty}>
+            <h3>No Courses Available</h3>
+
+            <p>
+              There are currently no courses
+              available.
+            </p>
           </div>
-        </>
-      )}
+        )}
+
+        <div style={styles.grid}>
+
+          {courses.map((course) => (
+
+            <div
+              key={course._id || course.id}
+              style={styles.card}
+            >
+
+              {/* Course Title */}
+              <h3 style={styles.courseTitle}>
+                {course.title ||
+                  course.name ||
+                  "Untitled Course"}
+              </h3>
+
+              {/* Description */}
+              <p style={styles.description}>
+                {course.description ||
+                  "No description available."}
+              </p>
+
+              {/* Course Information */}
+              <div style={styles.info}>
+
+                <p>
+                  <strong>
+                    Category:
+                  </strong>{" "}
+                  {course.category ||
+                    "Not specified"}
+                </p>
+
+                <p>
+                  <strong>
+                    Duration:
+                  </strong>{" "}
+                  {course.duration ||
+                    "Not specified"}
+                </p>
+
+                <p>
+                  <strong>
+                    Instructor:
+                  </strong>{" "}
+                  {course.instructorName ||
+                    course.displayInstructor ||
+                    (
+                      typeof course.instructor ===
+                      "object"
+                        ? course.instructor?.name
+                        : course.instructor
+                    ) ||
+                    "Not assigned"}
+                </p>
+
+              </div>
+
+              {/* View Course */}
+              <button
+                onClick={() =>
+                  handleViewCourse(course)
+                }
+                style={styles.viewButton}
+              >
+                View Course
+              </button>
+
+            </div>
+
+          ))}
+
+        </div>
+
+      </main>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    minHeight: "100vh",
+    background: "#f4f7fb"
+  },
+
+  header: {
+    background: "#2563eb",
+    color: "white",
+    padding: "18px 30px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+
+  headerButtons: {
+    display: "flex",
+    gap: "10px"
+  },
+
+  headerButton: {
+    background: "white",
+    color: "#2563eb",
+    border: "none",
+    padding: "10px 16px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "600"
+  },
+
+  main: {
+    maxWidth: "1100px",
+    margin: "40px auto",
+    padding: "20px"
+  },
+
+  heading: {
+    fontSize: "32px",
+    color: "#222",
+    marginBottom: "8px"
+  },
+
+  subtitle: {
+    color: "#666",
+    fontSize: "17px",
+    marginBottom: "30px"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, 1fr)",
+    gap: "25px"
+  },
+
+  card: {
+    background: "white",
+    padding: "25px",
+    borderRadius: "10px",
+    boxShadow:
+      "0 3px 12px rgba(0,0,0,0.1)"
+  },
+
+  courseTitle: {
+    fontSize: "22px",
+    color: "#2563eb",
+    marginBottom: "15px"
+  },
+
+  description: {
+    color: "#555",
+    lineHeight: "1.5",
+    marginBottom: "20px"
+  },
+
+  info: {
+    color: "#444",
+    lineHeight: "1.7",
+    marginBottom: "20px"
+  },
+
+  viewButton: {
+    width: "100%",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "15px"
+  },
+
+  error: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    padding: "15px",
+    borderRadius: "8px",
+    marginBottom: "25px"
+  },
+
+  retryButton: {
+    marginTop: "10px",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "8px 15px",
+    borderRadius: "5px",
+    cursor: "pointer"
+  },
+
+  empty: {
+    background: "white",
+    padding: "40px",
+    borderRadius: "10px",
+    textAlign: "center"
+  },
+
+  center: {
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  }
+};

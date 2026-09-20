@@ -1,133 +1,228 @@
 const Student = require("../models/Student");
-const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
-const JWT_SECRET = process.env.JWT_SECRET || "mini-project-secret-key-2026";
 
-// POST /api/students/register - Register new student
-exports.registerStudent = async (req, res) => {
+// ===============================
+// REGISTER STUDENT
+// ===============================
+const registerStudent = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { studentId, name, email, phone, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "Name, email and password are required" });
+    if (!studentId || !name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please fill all required fields"
+      });
     }
 
-    // Check duplicate student email
-    const existing = await Student.findOne({ email: email.toLowerCase().trim() });
-    if (existing) {
-      return res.status(400).json({ success: false, message: "A student with this email already exists" });
+    const existingStudentId = await Student.findOne({ studentId });
+
+    if (existingStudentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Student ID already registered"
+      });
     }
 
-    const newStudent = new Student({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password,
-      phone: phone || "",
-      enrolledCourses: [],
+    const existingEmail = await Student.findOne({ email });
+
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already registered"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const student = new Student({
+      studentId,
+      name,
+      email,
+      phone,
+      password: hashedPassword
     });
 
-    const savedStudent = await newStudent.save();
+    await student.save();
 
-    const token = jwt.sign({ id: savedStudent._id, email: savedStudent.email }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Student registered successfully",
       student: {
-        _id: savedStudent._id,
-        name: savedStudent.name,
-        email: savedStudent.email,
-        phone: savedStudent.phone,
-        enrolledCourses: savedStudent.enrolledCourses,
-        role: savedStudent.role,
-      },
-      token,
+        id: student._id,
+        studentId: student.studentId,
+        name: student.name,
+        email: student.email,
+        phone: student.phone
+      }
     });
+
   } catch (error) {
-    console.error("Registration error:", error);
-    res.status(400).json({ success: false, message: error.message });
+    console.error("Student Registration Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
   }
 };
 
-// POST /api/students/login - Authenticate student
-exports.loginStudent = async (req, res) => {
+
+// ===============================
+// LOGIN STUDENT
+// ===============================
+const loginStudent = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Check fields
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Please enter email and password"
+      });
     }
 
-    const student = await Student.findOne({ email: email.toLowerCase().trim() }).populate("enrolledCourses");
+    // Find student using email
+    const student = await Student.findOne({ email });
+
     if (!student) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
     }
 
-    const isMatch = await student.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    // Compare password
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      student.password
+    );
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
     }
 
-    const token = jwt.sign({ id: student._id, email: student.email }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.status(200).json({
+    // Successful login
+    return res.status(200).json({
       success: true,
       message: "Login successful",
       student: {
-        _id: student._id,
+        id: student._id,
+        studentId: student.studentId,
         name: student.name,
         email: student.email,
-        phone: student.phone,
-        enrolledCourses: student.enrolledCourses,
-        role: student.role,
-      },
-      token,
+        phone: student.phone
+      }
     });
+
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ success: false, message: "Login failed: " + error.message });
+    console.error("Student Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
   }
 };
 
-// GET /api/students - List all students
-exports.getStudents = async (req, res) => {
-  try {
-    const students = await Student.find()
-      .select("-password")
-      .populate("enrolledCourses", "title category price duration")
-      .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, count: students.length, students });
+// ===============================
+// GET ALL STUDENTS
+// ===============================
+const getStudents = async (req, res) => {
+  try {
+    const students = await Student.find().select("-password");
+
+    return res.status(200).json({
+      success: true,
+      students
+    });
+
   } catch (error) {
-    console.error("Error fetching students:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Get Students Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
   }
 };
 
-// GET /api/students/:id - Get student by ID
-exports.getStudentById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid Student ID format" });
-    }
 
-    const student = await Student.findById(id)
-      .select("-password")
-      .populate("enrolledCourses");
+// ===============================
+// GET STUDENT BY ID
+// ===============================
+const getStudentById = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id).select("-password");
 
     if (!student) {
-      return res.status(404).json({ success: false, message: "Student not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Student not found"
+      });
     }
 
-    res.status(200).json({ success: true, student });
+    return res.status(200).json({
+      success: true,
+      student
+    });
+
   } catch (error) {
-    console.error("Error fetching student:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Get Student Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
   }
+};
+
+
+// ===============================
+// DELETE STUDENT
+// ===============================
+const deleteStudent = async (req, res) => {
+  try {
+    const student = await Student.findByIdAndDelete(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Student deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("Delete Student Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+
+module.exports = {
+  registerStudent,
+  loginStudent,
+  getStudents,
+  getStudentById,
+  deleteStudent
 };

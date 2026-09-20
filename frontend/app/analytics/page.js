@@ -1,372 +1,574 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Loading from "../../components/Loading";
-import ErrorMessage from "../../components/ErrorMessage";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AnalyticsPage() {
-  const [coursesByCategory, setCoursesByCategory] = useState([]);
-  const [averagePrices, setAveragePrices] = useState([]);
-  const [popularCourses, setPopularCourses] = useState([]);
-  const [instructorSummary, setInstructorSummary] = useState([]);
-  const [revenueData, setRevenueData] = useState({ totalRevenue: 0, totalEnrollments: 0, averageEnrollmentFee: 0 });
+  const router = useRouter();
+
+  const [student, setStudent] = useState(null);
+  const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchAllAnalytics();
+    loadStudentProgress();
   }, []);
 
-  const fetchAllAnalytics = async () => {
-    setLoading(true);
-    setError("");
-
+  const loadStudentProgress = async () => {
     try {
-      const [catRes, priceRes, popRes, instRes, revRes] = await Promise.all([
-        fetch("http://localhost:5000/api/analytics/courses-by-category"),
-        fetch("http://localhost:5000/api/analytics/average-price"),
-        fetch("http://localhost:5000/api/analytics/course-enrollments"),
-        fetch("http://localhost:5000/api/analytics/instructor-summary"),
-        fetch("http://localhost:5000/api/analytics/total-revenue"),
-      ]);
+      setLoading(true);
+      setError("");
 
-      const [catData, priceData, popData, instData, revData] = await Promise.all([
-        catRes.json(),
-        priceRes.json(),
-        popRes.json(),
-        instRes.json(),
-        revRes.json(),
-      ]);
+      const savedStudent =
+        localStorage.getItem("student");
 
-      setCoursesByCategory(catData.data || []);
-      setAveragePrices(priceData.data || []);
-      setPopularCourses(popData.data || []);
-      setInstructorSummary(instData.data || []);
-      setRevenueData(revData.data || { totalRevenue: 0, totalEnrollments: 0, averageEnrollmentFee: 0 });
-    } catch (err) {
-      console.error("Analytics fetch error:", err);
-      setError("Failed to fetch aggregation reports. Make sure backend server is running on http://localhost:5000.");
+      if (!savedStudent) {
+        router.push("/login");
+        return;
+      }
+
+      const studentData =
+        JSON.parse(savedStudent);
+
+      setStudent(studentData);
+
+      const studentId =
+        studentData.id ||
+        studentData._id;
+
+      if (!studentId) {
+        setError("Student ID is missing.");
+        return;
+      }
+
+      const response = await fetch(
+        `http://localhost:5000/api/enrollments/student/${studentId}`
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "Progress API response:",
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to load progress"
+        );
+      }
+
+      setEnrollments(
+        data.enrollments || []
+      );
+    } catch (error) {
+      console.error(
+        "Progress Error:",
+        error
+      );
+
+      setError(
+        error.message ||
+          "Unable to load progress."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="page-container">
-      {/* Header Banner */}
-      <div className="admin-header">
-        <div>
-          <span className="admin-badge">Database Management Systems</span>
-          <h1 className="admin-title">MongoDB Aggregation Framework Reports</h1>
-          <p className="admin-sub">
-            Real-time analytical pipelines computed using MongoDB stages: <code>$group</code>, <code>$lookup</code>, <code>$unwind</code>, <code>$sort</code>, and <code>$project</code>.
-          </p>
-        </div>
-        <button onClick={fetchAllAnalytics} className="btn-refresh">
-          🔄 Re-run Aggregations
-        </button>
+  const totalCourses =
+    enrollments.length;
+
+  const completedCourses =
+    enrollments.filter(
+      (enrollment) =>
+        enrollment.status === "Completed" ||
+        enrollment.progress === 100
+    ).length;
+
+  const activeCourses =
+    enrollments.filter(
+      (enrollment) =>
+        enrollment.status !== "Completed" &&
+        enrollment.progress < 100
+    ).length;
+
+  const overallProgress =
+    totalCourses > 0
+      ? Math.round(
+          enrollments.reduce(
+            (total, enrollment) =>
+              total +
+              (enrollment.progress || 0),
+            0
+          ) / totalCourses
+        )
+      : 0;
+
+  if (loading) {
+    return (
+      <div style={styles.center}>
+        <h2>
+          Loading Progress...
+        </h2>
       </div>
-
-      {error && <ErrorMessage message={error} onDismiss={() => setError("")} />}
-
-      {loading ? (
-        <Loading message="Executing MongoDB Aggregation Pipelines in Atlas..." />
-      ) : (
-        <div className="analytics-layout">
-          {/* Revenue Aggregation Card */}
-          <div className="report-card report-card-highlight">
-            <div className="report-card-header">
-              <div>
-                <span className="query-tag">Aggregation #1: Relational $lookup + $unwind</span>
-                <h3>Total Platform Revenue & Financial Summary</h3>
-              </div>
-              <span className="stage-pill">$lookup &rarr; $unwind &rarr; $group</span>
-            </div>
-
-            <div className="revenue-stats-row">
-              <div className="rev-box">
-                <span className="rev-lbl">Total Revenue Generated</span>
-                <span className="rev-val">₹{revenueData.totalRevenue?.toLocaleString("en-IN") || 0}</span>
-                <span className="rev-hint">Sum of enrolled course prices</span>
-              </div>
-              <div className="rev-box">
-                <span className="rev-lbl">Total Paid Enrollments</span>
-                <span className="rev-val">{revenueData.totalEnrollments || 0}</span>
-                <span className="rev-hint">Validated active records</span>
-              </div>
-              <div className="rev-box">
-                <span className="rev-lbl">Avg Fee Per Enrollment</span>
-                <span className="rev-val">₹{revenueData.averageEnrollmentFee || 0}</span>
-                <span className="rev-hint">Computed via $avg</span>
-              </div>
-            </div>
-
-            <div className="pipeline-code-block">
-              <span className="code-lbl">MongoDB Shell Aggregation Pipeline:</span>
-              <pre>
-{`db.enrollments.aggregate([
-  {
-    $lookup: {
-      from: "courses",
-      localField: "course",
-      foreignField: "_id",
-      as: "courseDetails"
-    }
-  },
-  { $unwind: "$courseDetails" },
-  {
-    $group: {
-      _id: null,
-      totalRevenue: { $sum: "$courseDetails.price" },
-      totalEnrollments: { $sum: 1 },
-      averageEnrollmentFee: { $avg: "$courseDetails.price" }
-    }
+    );
   }
-])`}
-              </pre>
-            </div>
+
+  return (
+    <div style={styles.container}>
+
+      {/* HEADER */}
+
+      <header style={styles.header}>
+
+        <h1>
+          Online Course Management System
+        </h1>
+
+        <button
+          onClick={() =>
+            router.push("/dashboard")
+          }
+          style={styles.headerButton}
+        >
+          Dashboard
+        </button>
+
+      </header>
+
+
+      {/* MAIN CONTENT */}
+
+      <main style={styles.main}>
+
+        <button
+          onClick={() =>
+            router.push("/dashboard")
+          }
+          style={styles.backButton}
+        >
+          ← Back to Dashboard
+        </button>
+
+
+        <h2 style={styles.title}>
+          Learning Progress
+        </h2>
+
+        {student && (
+          <p style={styles.welcome}>
+            Student:{" "}
+            <strong>
+              {student.name}
+            </strong>
+          </p>
+        )}
+
+
+        {/* ERROR */}
+
+        {error && (
+          <div style={styles.error}>
+            <h3>
+              Unable to Load Progress
+            </h3>
+
+            <p>
+              {error}
+            </p>
           </div>
+        )}
 
-          <div className="analytics-grid-two">
-            {/* Aggregation #2: Courses by Category */}
-            <div className="report-card">
-              <div className="report-card-header">
-                <div>
-                  <span className="query-tag">Aggregation #2: $group + $sum</span>
-                  <h3>Course Distribution by Category</h3>
-                </div>
+
+        {/* SUMMARY */}
+
+        {!error && (
+          <>
+            <div style={styles.summaryGrid}>
+
+              {/* TOTAL COURSES */}
+
+              <div style={styles.summaryCard}>
+
+                <h3>
+                  Total Courses
+                </h3>
+
+                <p style={styles.number}>
+                  {totalCourses}
+                </p>
+
               </div>
 
-              <div className="table-responsive">
-                <table className="crud-table">
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th>Total Courses</th>
-                      <th>Price Range (Min - Max)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {coursesByCategory.map((cat) => (
-                      <tr key={cat._id}>
-                        <td>
-                          <span className="card-category-badge">{cat._id}</span>
-                        </td>
-                        <td>
-                          <strong>{cat.totalCourses} courses</strong>
-                        </td>
-                        <td>
-                          ₹{cat.minPrice} - ₹{cat.maxPrice}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              {/* COMPLETED */}
+
+              <div style={styles.summaryCard}>
+
+                <h3>
+                  Completed Courses
+                </h3>
+
+                <p style={styles.number}>
+                  {completedCourses}
+                </p>
+
               </div>
 
-              <div className="pipeline-code-block">
-                <span className="code-lbl">Pipeline:</span>
-                <pre>
-{`db.courses.aggregate([
-  {
-    $group: {
-      _id: "$category",
-      totalCourses: { $sum: 1 },
-      minPrice: { $min: "$price" },
-      maxPrice: { $max: "$price" }
-    }
-  },
-  { $sort: { totalCourses: -1 } }
-])`}
-                </pre>
+
+              {/* ACTIVE */}
+
+              <div style={styles.summaryCard}>
+
+                <h3>
+                  Active Courses
+                </h3>
+
+                <p style={styles.number}>
+                  {activeCourses}
+                </p>
+
               </div>
+
+
+              {/* OVERALL */}
+
+              <div style={styles.summaryCard}>
+
+                <h3>
+                  Overall Progress
+                </h3>
+
+                <p style={styles.number}>
+                  {overallProgress}%
+                </p>
+
+              </div>
+
             </div>
 
-            {/* Aggregation #3: Average Price by Category */}
-            <div className="report-card">
-              <div className="report-card-header">
-                <div>
-                  <span className="query-tag">Aggregation #3: $group + $avg + $sort</span>
-                  <h3>Average Course Price by Category</h3>
+
+            {/* COURSE PROGRESS */}
+
+            <section
+              style={{
+                marginTop: "35px"
+              }}
+            >
+
+              <h2>
+                Course Progress
+              </h2>
+
+              <p style={styles.subtitle}>
+                Track your learning progress
+                for each enrolled course.
+              </p>
+
+
+              {enrollments.length === 0 ? (
+
+                <div style={styles.empty}>
+
+                  <h3>
+                    No Courses Enrolled
+                  </h3>
+
+                  <p>
+                    You have not enrolled
+                    in any course yet.
+                  </p>
+
+                  <button
+                    onClick={() =>
+                      router.push("/courses")
+                    }
+                    style={styles.primaryButton}
+                  >
+                    Browse Courses
+                  </button>
+
                 </div>
-              </div>
 
-              <div className="table-responsive">
-                <table className="crud-table">
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th>Average Course Price</th>
-                      <th>Course Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {averagePrices.map((item) => (
-                      <tr key={item.category}>
-                        <td>
-                          <strong>{item.category}</strong>
-                        </td>
-                        <td>
-                          <span className="price-tag-table">₹{item.averagePrice}</span>
-                        </td>
-                        <td>{item.totalCourses}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              ) : (
 
-              <div className="pipeline-code-block">
-                <span className="code-lbl">Pipeline:</span>
-                <pre>
-{`db.courses.aggregate([
-  {
-    $group: {
-      _id: "$category",
-      averagePrice: { $avg: "$price" },
-      totalCourses: { $sum: 1 }
-    }
-  },
-  {
-    $project: {
-      category: "$_id",
-      averagePrice: { $round: ["$averagePrice", 2] },
-      totalCourses: 1,
-      _id: 0
-    }
-  },
-  { $sort: { averagePrice: -1 } }
-])`}
-                </pre>
-              </div>
-            </div>
-          </div>
+                <div style={styles.courseList}>
 
-          <div className="analytics-grid-two">
-            {/* Aggregation #4: Popular Courses by Enrollment */}
-            <div className="report-card">
-              <div className="report-card-header">
-                <div>
-                  <span className="query-tag">Aggregation #4: $project + $sort + $limit</span>
-                  <h3>Top Popular Courses (By Enrollment)</h3>
+                  {enrollments.map(
+                    (enrollment) => {
+
+                      const course =
+                        enrollment.course;
+
+                      const progress =
+                        enrollment.progress ||
+                        0;
+
+                      return (
+                        <div
+                          key={
+                            enrollment._id
+                          }
+                          style={styles.courseCard}
+                        >
+
+                          <div
+                            style={
+                              styles.courseHeader
+                            }
+                          >
+
+                            <div>
+
+                              <h3>
+                                {course?.title ||
+                                  "Course"}
+                              </h3>
+
+                              <p
+                                style={
+                                  styles.description
+                                }
+                              >
+                                {course?.description ||
+                                  "Continue learning this course."}
+                              </p>
+
+                            </div>
+
+                            <strong>
+                              {progress}%
+                            </strong>
+
+                          </div>
+
+
+                          {/* PROGRESS BAR */}
+
+                          <div
+                            style={
+                              styles.progressBackground
+                            }
+                          >
+
+                            <div
+                              style={{
+                                ...styles.progressBar,
+                                width:
+                                  `${progress}%`
+                              }}
+                            />
+
+                          </div>
+
+
+                          <div
+                            style={
+                              styles.progressInfo
+                            }
+                          >
+
+                            <span>
+                              {progress === 100
+                                ? "Completed"
+                                : "In Progress"}
+                            </span>
+
+                            <span>
+                              {progress}%
+                            </span>
+
+                          </div>
+
+                        </div>
+                      );
+                    }
+                  )}
+
                 </div>
-              </div>
+              )}
 
-              <div className="table-responsive">
-                <table className="crud-table">
-                  <thead>
-                    <tr>
-                      <th>Course</th>
-                      <th>Students</th>
-                      <th>Rating</th>
-                      <th>Est. Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {popularCourses.slice(0, 5).map((course, idx) => (
-                      <tr key={course._id || idx}>
-                        <td>
-                          <strong>{course.title}</strong>
-                        </td>
-                        <td>
-                          <span className="enrolled-badge">{course.studentsEnrolled}</span>
-                        </td>
-                        <td>⭐ {course.rating ? Number(course.rating).toFixed(1) : "4.5"}</td>
-                        <td>
-                          <strong>₹{course.estimatedRevenue?.toLocaleString("en-IN") || 0}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            </section>
 
-              <div className="pipeline-code-block">
-                <span className="code-lbl">Pipeline:</span>
-                <pre>
-{`db.courses.aggregate([
-  {
-    $project: {
-      title: 1,
-      category: 1,
-      studentsEnrolled: 1,
-      rating: 1,
-      estimatedRevenue: { $multiply: ["$price", "$studentsEnrolled"] }
-    }
-  },
-  { $sort: { studentsEnrolled: -1 } },
-  { $limit: 5 }
-])`}
-                </pre>
-              </div>
-            </div>
+          </>
+        )}
 
-            {/* Aggregation #5: Instructor Summary */}
-            <div className="report-card">
-              <div className="report-card-header">
-                <div>
-                  <span className="query-tag">Aggregation #5: $group by Instructor</span>
-                  <h3>Faculty & Instructor Performance</h3>
-                </div>
-              </div>
+      </main>
 
-              <div className="table-responsive">
-                <table className="crud-table">
-                  <thead>
-                    <tr>
-                      <th>Instructor</th>
-                      <th>Courses Taught</th>
-                      <th>Total Students</th>
-                      <th>Average Rating</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {instructorSummary.map((inst) => (
-                      <tr key={inst.instructor}>
-                        <td>
-                          <strong>{inst.instructor}</strong>
-                        </td>
-                        <td>{inst.totalCourses}</td>
-                        <td>
-                          <span className="enrolled-badge">{inst.totalStudents}</span>
-                        </td>
-                        <td>⭐ {inst.averageRating}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="pipeline-code-block">
-                <span className="code-lbl">Pipeline:</span>
-                <pre>
-{`db.courses.aggregate([
-  {
-    $group: {
-      _id: "$instructorName",
-      totalCourses: { $sum: 1 },
-      totalStudents: { $sum: "$studentsEnrolled" },
-      averageRating: { $avg: "$rating" }
-    }
-  },
-  {
-    $project: {
-      instructor: "$_id",
-      totalCourses: 1,
-      totalStudents: 1,
-      averageRating: { $round: ["$averageRating", 2] },
-      _id: 0
-    }
-  },
-  { $sort: { totalStudents: -1 } }
-])`}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+
+/* ============================= */
+/* STYLES */
+/* ============================= */
+
+const styles = {
+
+  container: {
+    minHeight: "100vh",
+    background: "#f4f7fb"
+  },
+
+  header: {
+    background: "#2563eb",
+    color: "white",
+    padding: "20px 30px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+
+  headerButton: {
+    background: "white",
+    color: "#2563eb",
+    border: "none",
+    padding: "10px 20px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold"
+  },
+
+  main: {
+    maxWidth: "1000px",
+    margin: "40px auto",
+    padding: "20px"
+  },
+
+  backButton: {
+    background: "transparent",
+    border: "none",
+    color: "#2563eb",
+    cursor: "pointer",
+    fontSize: "16px",
+    marginBottom: "20px"
+  },
+
+  title: {
+    fontSize: "32px",
+    color: "#222",
+    marginBottom: "8px"
+  },
+
+  welcome: {
+    color: "#555",
+    marginBottom: "30px"
+  },
+
+  subtitle: {
+    color: "#666",
+    marginBottom: "25px"
+  },
+
+  summaryGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(4, 1fr)",
+    gap: "20px",
+    marginTop: "25px"
+  },
+
+  summaryCard: {
+    background: "white",
+    padding: "25px",
+    borderRadius: "10px",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)",
+    textAlign: "center"
+  },
+
+  number: {
+    fontSize: "30px",
+    fontWeight: "bold",
+    color: "#2563eb",
+    marginTop: "10px"
+  },
+
+  courseList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px"
+  },
+
+  courseCard: {
+    background: "white",
+    padding: "25px",
+    borderRadius: "10px",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)"
+  },
+
+  courseHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "20px"
+  },
+
+  description: {
+    color: "#666",
+    lineHeight: "1.5",
+    marginTop: "8px"
+  },
+
+  progressBackground: {
+    width: "100%",
+    height: "12px",
+    background: "#e5e7eb",
+    borderRadius: "10px",
+    overflow: "hidden",
+    marginTop: "20px"
+  },
+
+  progressBar: {
+    height: "100%",
+    background: "#2563eb",
+    borderRadius: "10px"
+  },
+
+  progressInfo: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: "8px",
+    color: "#555",
+    fontSize: "14px"
+  },
+
+  empty: {
+    background: "white",
+    padding: "40px",
+    borderRadius: "10px",
+    textAlign: "center",
+    boxShadow:
+      "0 3px 10px rgba(0,0,0,0.1)"
+  },
+
+  primaryButton: {
+    marginTop: "20px",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "12px 22px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold"
+  },
+
+  error: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    padding: "20px",
+    borderRadius: "10px"
+  },
+
+  center: {
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  }
+};

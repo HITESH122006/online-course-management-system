@@ -1,217 +1,112 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-function getInstructorName(course) {
-  if (course?.instructorName) {
-    return course.instructorName;
-  }
+const API_URL = "http://localhost:5000/api/courses";
 
-  if (course?.displayInstructor) {
-    return course.displayInstructor;
-  }
-
-  if (typeof course?.instructor === "string") {
-    return course.instructor;
-  }
-
-  if (
-    course?.instructor &&
-    typeof course.instructor === "object"
-  ) {
-    return course.instructor.name || "Unknown Instructor";
-  }
-
-  return "Unknown Instructor";
+function getInstructorName(instructor) {
+  if (!instructor) return "Instructor";
+  if (typeof instructor === "string") return instructor;
+  return instructor.name || "Instructor";
 }
 
 function getCourseId(course) {
-  return course?._id || course?.id;
+  return course._id || course.id;
 }
 
-function getCourseDuration(course) {
-  if (typeof course?.duration === "string") {
-    return course.duration;
-  }
+function CourseCard({ course }) {
+  const instructorName = getInstructorName(course.instructor);
+  const courseId = getCourseId(course);
 
-  if (course?.duration) {
-    return `${course.duration} Hours`;
-  }
-
-  return "Not specified";
-}
-
-function getEnrollmentCount(course) {
-  if (typeof course?.studentsEnrolled === "number") {
-    return course.studentsEnrolled;
-  }
-
-  if (typeof course?.enrolled === "number") {
-    return course.enrolled;
-  }
-
-  if (Array.isArray(course?.enrollments)) {
-    return course.enrollments.length;
-  }
-
-  return 0;
-}
-
-function getCourseImage(course) {
   return (
-    course?.image ||
-    course?.thumbnail ||
-    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&auto=format&fit=crop&q=60"
-  );
-}
+    <div className="course-card">
+      <div className="course-image">
+        {course.image ? (
+          <img src={course.image} alt={course.title} />
+        ) : (
+          <div className="image-placeholder">Course</div>
+        )}
+      </div>
 
-function getCourseLevel(course) {
-  return course?.level || "Beginner";
-}
+      <div className="course-content">
+        <div className="course-top">
+          <span className="category">
+            {course.category || "Course"}
+          </span>
 
-function getCourseRating(course) {
-  return course?.rating || 0;
-}
+          {course.level && (
+            <span className="level">{course.level}</span>
+          )}
+        </div>
 
-function StatCard({ icon, value, label }) {
-  return (
-    <div className="stat-card">
-      <div className="stat-icon">{icon}</div>
+        <h3>{course.title}</h3>
 
-      <div className="stat-number">{value}</div>
+        <p className="description">
+          {course.description ||
+            "Learn this course with practical lessons."}
+        </p>
 
-      <div className="stat-label">{label}</div>
+        <p className="instructor">
+          Instructor: <strong>{instructorName}</strong>
+        </p>
+
+        <div className="course-info">
+          <span>⭐ {course.rating || "4.5"}</span>
+          <span>⏱ {course.duration || "8 weeks"}</span>
+          <span>👥 {course.studentsEnrolled || 0}</span>
+        </div>
+
+        <div className="course-bottom">
+          <span className="price">
+            {course.price === 0 || course.price === "0"
+              ? "Free"
+              : `₹${course.price}`}
+          </span>
+
+          {/* VIEW COURSE BUTTON */}
+          <Link
+            href={`/courses/${courseId}`}
+            className="details-button"
+          >
+            View Course
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
 
-function CourseCard({ course }) {
-  const courseId = getCourseId(course);
-  const instructorName = getInstructorName(course);
-  const enrollmentCount = getEnrollmentCount(course);
-
-  return (
-    <article className="course-card">
-      <div className="course-image-wrapper">
-        <img
-          src={getCourseImage(course)}
-          alt={course?.title || "Course image"}
-          className="course-image"
-        />
-
-        <span className="course-category">
-          {course?.category || "General"}
-        </span>
-
-        <span
-          className={`course-level level-${String(
-            getCourseLevel(course)
-          ).toLowerCase()}`}
-        >
-          {getCourseLevel(course)}
-        </span>
-      </div>
-
-      <div className="course-content">
-        <h3 className="course-title">
-          {course?.title || "Untitled Course"}
-        </h3>
-
-        <p className="course-description">
-          {course?.description || "No description available."}
-        </p>
-
-        <div className="course-meta">
-          <span>🧑‍🏫 {instructorName}</span>
-
-          <span>⏱️ {getCourseDuration(course)}</span>
-        </div>
-
-        <div className="course-rating-row">
-          <span className="rating-badge">
-            ⭐ {getCourseRating(course)}
-          </span>
-
-          <span className="enrolled-badge">
-            👥 {enrollmentCount} enrolled
-          </span>
-        </div>
-
-        <div className="course-bottom">
-          <div className="course-price">
-            ₹
-            {Number(course?.price || 0).toLocaleString(
-              "en-IN"
-            )}
-          </div>
-
-          <div className="course-actions">
-            <a
-              href={`/courses/${courseId}`}
-              className="details-button"
-            >
-              Details
-            </a>
-
-            <a
-              href={`/enroll/${courseId}`}
-              className="enroll-button"
-            >
-              Enroll
-            </a>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-export default function HomePage() {
+export default function Home() {
   const [courses, setCourses] = useState([]);
-  const [searchText, setSearchText] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function fetchCourses() {
       try {
-        setLoading(true);
-        setErrorMessage("");
-
-        const response = await fetch(
-          "http://localhost:5000/api/courses",
-          {
-            cache: "no-store",
-          }
-        );
+        const response = await fetch(API_URL);
 
         if (!response.ok) {
-          throw new Error(
-            `Request failed with status ${response.status}`
-          );
+          throw new Error("Unable to load courses");
         }
 
-        const result = await response.json();
+        const data = await response.json();
 
-        let courseData = [];
-
-        if (Array.isArray(result)) {
-          courseData = result;
-        } else if (Array.isArray(result.courses)) {
-          courseData = result.courses;
-        } else if (Array.isArray(result.data)) {
-          courseData = result.data;
+        if (Array.isArray(data)) {
+          setCourses(data);
+        } else if (Array.isArray(data.courses)) {
+          setCourses(data.courses);
+        } else if (Array.isArray(data.data)) {
+          setCourses(data.data);
+        } else {
+          setCourses([]);
         }
-
-        setCourses(courseData);
-      } catch (error) {
-        console.error("Unable to load courses:", error);
-
-        setErrorMessage(
-          "Unable to load courses from the backend."
-        );
+      } catch (err) {
+        console.error(err);
+        setError("Unable to connect to the course server.");
       } finally {
         setLoading(false);
       }
@@ -220,361 +115,200 @@ export default function HomePage() {
     fetchCourses();
   }, []);
 
-  const categories = useMemo(() => {
-    const uniqueCategories = [
-      ...new Set(
-        courses
-          .map((course) => course?.category)
-          .filter(Boolean)
-      ),
-    ];
+  const categories = [
+    "All",
+    ...new Set(
+      courses
+        .map((course) => course.category)
+        .filter(Boolean)
+    ),
+  ];
 
-    return ["All", ...uniqueCategories];
-  }, [courses]);
+  const filteredCourses = courses.filter((course) => {
+    const searchText = search.toLowerCase();
 
-  const filteredCourses = useMemo(() => {
-    const search = searchText.trim().toLowerCase();
+    const matchesSearch =
+      course.title
+        ?.toLowerCase()
+        .includes(searchText) ||
+      course.description
+        ?.toLowerCase()
+        .includes(searchText);
 
-    return courses.filter((course) => {
-      const instructorName =
-        getInstructorName(course).toLowerCase();
+    const matchesCategory =
+      category === "All" ||
+      course.category === category;
 
-      const title = String(
-        course?.title || ""
-      ).toLowerCase();
-
-      const description = String(
-        course?.description || ""
-      ).toLowerCase();
-
-      const category = String(
-        course?.category || ""
-      ).toLowerCase();
-
-      const matchesSearch =
-        title.includes(search) ||
-        description.includes(search) ||
-        instructorName.includes(search) ||
-        category.includes(search);
-
-      const matchesCategory =
-        selectedCategory === "All" ||
-        course?.category === selectedCategory;
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [courses, searchText, selectedCategory]);
-
-  const totalEnrollments = courses.reduce(
-    (total, course) =>
-      total + getEnrollmentCount(course),
-    0
-  );
-
-  const uniqueInstructors = new Set(
-    courses
-      .map((course) => {
-        if (
-          course?.instructor &&
-          typeof course.instructor === "object"
-        ) {
-          return course.instructor._id;
-        }
-
-        return getInstructorName(course);
-      })
-      .filter(Boolean)
-  ).size;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <main className="page-wrapper">
-      {/* NAVBAR */}
-      <header className="navbar">
-        <div className="navbar-inner">
-          <a href="/" className="brand-area">
-            <div className="mongodb-logo">
-              MONGODB
-              <br />
-              ATLAS
-            </div>
+    <main>
+      {/* HEADER */}
+      <header className="header">
+        <div className="header-container">
 
-            <div className="brand-name">
-              EduCourse
-            </div>
-          </a>
+          <div className="logo">
+            Online Course Management
+          </div>
 
-          <nav className="navigation">
-            <a
-              href="/"
-              className="nav-link active"
+          <div className="header-actions">
+
+            {/* LOGIN */}
+            <Link
+              href="/login"
+              className="login-button"
             >
-              Home
-            </a>
+              Login
+            </Link>
 
-            <a
-              href="/courses"
-              className="nav-link"
+            {/* REGISTER */}
+            <Link
+              href="/register"
+              className="register-button"
             >
-              All
-              <br />
-              Courses
-            </a>
+              Register
+            </Link>
 
-            <a
-              href="/student-dashboard"
-              className="nav-link"
-            >
-              Student
-              <br />
-              Dashboard
-            </a>
-
-            <a
-              href="/admin"
-              className="nav-link"
-            >
-              Admin
-              <br />
-              Portal
-            </a>
-
-            <a
-              href="/aggregations"
-              className="nav-link"
-            >
-              MongoDB
-              <br />
-              Aggregations
-            </a>
-          </nav>
-
-          <a
-            href="/login"
-            className="login-button"
-          >
-            Login
-          </a>
+          </div>
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      <section className="hero-section">
-        <div className="hero-badge">
-          🎓 TAÉ-2 DBMS / AWT Mini Project
-        </div>
+      {/* HERO */}
+      <section className="hero">
+        <div className="hero-container">
+          <div className="hero-content">
 
-        <h1 className="hero-title">
-          Online Course Management System
-        </h1>
+            <span className="hero-label">
+              ONLINE LEARNING PLATFORM
+            </span>
 
-        <p className="hero-description">
-          A full-stack learning platform built with{" "}
-          <strong>Next.js 16</strong>,{" "}
-          <strong>Express.js</strong>, and{" "}
-          <strong>MongoDB Atlas</strong>,
-          <br />
-          demonstrating schema design, complete CRUD
-          operations, and multi-stage aggregation pipelines.
-        </p>
-
-        <div className="hero-buttons">
-          <a
-            href="/courses"
-            className="hero-button primary"
-          >
-            Explore All Courses →
-          </a>
-
-          <a
-            href="/admin"
-            className="hero-button secondary"
-          >
-            Manage Courses (CRUD) ⚙️
-          </a>
-        </div>
-
-        <a
-          href="/aggregations"
-          className="aggregation-button"
-        >
-          MongoDB Aggregations 📊
-        </a>
-      </section>
-
-      {/* STATISTICS */}
-      <section className="stats-grid">
-        <StatCard
-          icon="📚"
-          value={courses.length}
-          label="Active Courses"
-        />
-
-        <StatCard
-          icon="🎓"
-          value="6"
-          label="Registered Students"
-        />
-
-        <StatCard
-          icon="🧑‍🏫"
-          value={uniqueInstructors}
-          label="Verified Instructors"
-        />
-
-        <StatCard
-          icon="📈"
-          value={totalEnrollments}
-          label="Total Enrollments"
-        />
-      </section>
-
-      {/* FEATURED COURSES */}
-      <section className="courses-section">
-        <div className="section-heading">
-          <div>
-            <h2>
-              Featured MongoDB Courses
-            </h2>
+            <h1>
+              Learn New Skills.
+              <br />
+              Build Your Future.
+            </h1>
 
             <p>
-              Live records queried from MongoDB Atlas
-              collections
+              Explore quality courses, learn from experienced
+              instructors, and improve your skills.
+            </p>
+
+            <button
+              className="hero-button"
+              onClick={() =>
+                document
+                  .getElementById("courses")
+                  ?.scrollIntoView({
+                    behavior: "smooth",
+                  })
+              }
+            >
+              Explore Courses
+            </button>
+
+          </div>
+        </div>
+      </section>
+
+      {/* COURSES */}
+      <section
+        className="courses-section"
+        id="courses"
+      >
+        <div className="section-container">
+
+          <div className="section-heading">
+            <div>
+              <span className="section-label">
+                OUR COURSES
+              </span>
+
+              <h2>Popular Courses</h2>
+            </div>
+
+            <p>
+              Choose a course and start learning today.
             </p>
           </div>
 
-          <a
-            href="/courses"
-            className="view-all-link"
-          >
-            View All ({courses.length}) →
-          </a>
-        </div>
+          {/* SEARCH AND FILTER */}
+          <div className="filters">
 
-        <div className="filter-area">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search courses or instructors..."
-            value={searchText}
-            onChange={(event) =>
-              setSearchText(event.target.value)
-            }
-          />
+            <input
+              type="text"
+              placeholder="Search courses..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
 
-          <select
-            className="category-select"
-            value={selectedCategory}
-            onChange={(event) =>
-              setSelectedCategory(event.target.value)
-            }
-          >
-            {categories.map((category) => (
-              <option
-                key={category}
-                value={category}
-              >
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {loading && (
-          <div className="loading-message">
-            Loading courses from MongoDB Atlas...
-          </div>
-        )}
-
-        {!loading && errorMessage && (
-          <div className="error-message">
-            {errorMessage}
-          </div>
-        )}
-
-        {!loading &&
-          !errorMessage &&
-          filteredCourses.length === 0 && (
-            <div className="empty-message">
-              No courses found.
-            </div>
-          )}
-
-        {!loading &&
-          !errorMessage &&
-          filteredCourses.length > 0 && (
-            <div className="courses-grid">
-              {filteredCourses.map((course) => (
-                <CourseCard
-                  key={getCourseId(course)}
-                  course={course}
-                />
+            <select
+              value={category}
+              onChange={(e) =>
+                setCategory(e.target.value)
+              }
+            >
+              {categories.map((item) => (
+                <option
+                  key={item}
+                  value={item}
+                >
+                  {item}
+                </option>
               ))}
+            </select>
+
+          </div>
+
+          {/* LOADING */}
+          {loading && (
+            <div className="message">
+              Loading courses...
             </div>
           )}
-      </section>
 
-      {/* MONGODB FEATURES */}
-      <section className="features-section">
-        <h2>
-          System Architecture & MongoDB Features
-          Implemented
-        </h2>
+          {/* ERROR */}
+          {error && (
+            <div className="message error">
+              {error}
+            </div>
+          )}
 
-        <div className="features-grid">
-          <div className="feature-item">
-            <h3>
-              1. MongoDB Atlas Connectivity
-            </h3>
+          {/* NO COURSES */}
+          {!loading &&
+            !error &&
+            filteredCourses.length === 0 && (
+              <div className="message">
+                No courses found.
+              </div>
+            )}
 
-            <p>
-              Mongoose ODM connection to cloud replica
-              set with resilient DNS and error trapping.
-            </p>
-          </div>
+          {/* COURSE LIST */}
+          {!loading &&
+            !error &&
+            filteredCourses.length > 0 && (
+              <div className="course-grid">
+                {filteredCourses.map((course) => (
+                  <CourseCard
+                    key={getCourseId(course)}
+                    course={course}
+                  />
+                ))}
+              </div>
+            )}
 
-          <div className="feature-item">
-            <h3>
-              2. Complete CRUD APIs
-            </h3>
-
-            <p>
-              Full REST endpoints including GET, POST,
-              PUT and DELETE for modifying real documents
-              in MongoDB.
-            </p>
-          </div>
-
-          <div className="feature-item">
-            <h3>
-              3. Relational Modeling
-            </h3>
-
-            <p>
-              Collections with ObjectId references,
-              cascade logic, and compound unique indexes.
-            </p>
-          </div>
-
-          <div className="feature-item">
-            <h3>
-              4. Aggregation Pipelines
-            </h3>
-
-            <p>
-              Advanced stages including $group, $match,
-              $sort, $lookup, $unwind and $project
-              calculations.
-            </p>
-          </div>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer className="footer">
-        <p>
-          © 2026 EduCourse | Online Course Management
-          System
-        </p>
+        <div className="footer-container">
+          <p>
+            © 2026 Online Course Management System
+          </p>
+        </div>
       </footer>
     </main>
   );
