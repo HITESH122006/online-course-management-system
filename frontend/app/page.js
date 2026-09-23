@@ -143,7 +143,17 @@ export default function Home() {
   });
 
   return (
-    <main>
+    <main
+      style={{
+        minHeight: "100vh",
+        background:
+          'linear-gradient(rgba(10, 20, 40, 0.55), rgba(10, 20, 40, 0.55)), url("https://media.istockphoto.com/id/1883285965/photo/an-unrecognizable-businesswoman-working-in-her-office-on-her-computer.jpg?s=612x612&w=0&k=20&c=gGxCXAwnjSYtoYBxe3IviqIzkJc0WLTdmhUXpQxpcw8=")',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       {/* HEADER */}
       <header className="header">
         <div className="header-container">

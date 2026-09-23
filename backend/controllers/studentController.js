@@ -7,7 +7,13 @@ const bcrypt = require("bcryptjs");
 // ===============================
 const registerStudent = async (req, res) => {
   try {
-    const { studentId, name, email, phone, password } = req.body;
+    const {
+      studentId,
+      name,
+      email,
+      phone,
+      password
+    } = req.body;
 
     if (!studentId || !name || !email || !password) {
       return res.status(400).json({
@@ -16,7 +22,8 @@ const registerStudent = async (req, res) => {
       });
     }
 
-    const existingStudentId = await Student.findOne({ studentId });
+    const existingStudentId =
+      await Student.findOne({ studentId });
 
     if (existingStudentId) {
       return res.status(400).json({
@@ -25,7 +32,8 @@ const registerStudent = async (req, res) => {
       });
     }
 
-    const existingEmail = await Student.findOne({ email });
+    const existingEmail =
+      await Student.findOne({ email });
 
     if (existingEmail) {
       return res.status(400).json({
@@ -34,7 +42,8 @@ const registerStudent = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
 
     const student = new Student({
       studentId,
@@ -59,7 +68,10 @@ const registerStudent = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Student Registration Error:", error);
+    console.error(
+      "Student Registration Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -75,9 +87,11 @@ const registerStudent = async (req, res) => {
 // ===============================
 const loginStudent = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password
+    } = req.body;
 
-    // Check fields
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -85,8 +99,8 @@ const loginStudent = async (req, res) => {
       });
     }
 
-    // Find student using email
-    const student = await Student.findOne({ email });
+    const student =
+      await Student.findOne({ email });
 
     if (!student) {
       return res.status(401).json({
@@ -95,11 +109,11 @@ const loginStudent = async (req, res) => {
       });
     }
 
-    // Compare password
-    const isPasswordCorrect = await bcrypt.compare(
-      password,
-      student.password
-    );
+    const isPasswordCorrect =
+      await bcrypt.compare(
+        password,
+        student.password
+      );
 
     if (!isPasswordCorrect) {
       return res.status(401).json({
@@ -108,7 +122,6 @@ const loginStudent = async (req, res) => {
       });
     }
 
-    // Successful login
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -122,7 +135,93 @@ const loginStudent = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Student Login Error:", error);
+    console.error(
+      "Student Login Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+
+// ===============================
+// FORGOT PASSWORD
+// ===============================
+const forgotPassword = async (req, res) => {
+  try {
+    const {
+      email,
+      newPassword,
+      confirmPassword
+    } = req.body;
+
+    // Check all fields
+    if (
+      !email ||
+      !newPassword ||
+      !confirmPassword
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Email, new password and confirm password are required"
+      });
+    }
+
+    // Check passwords
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match"
+      });
+    }
+
+    // Minimum password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must be at least 6 characters"
+      });
+    }
+
+    // Find student
+    const student =
+      await Student.findOne({ email });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No student found with this email address"
+      });
+    }
+
+    // Hash new password
+    const hashedPassword =
+      await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    student.password = hashedPassword;
+
+    await student.save();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Password reset successfully. You can now login with your new password."
+    });
+
+  } catch (error) {
+    console.error(
+      "Forgot Password Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -138,7 +237,8 @@ const loginStudent = async (req, res) => {
 // ===============================
 const getStudents = async (req, res) => {
   try {
-    const students = await Student.find().select("-password");
+    const students =
+      await Student.find().select("-password");
 
     return res.status(200).json({
       success: true,
@@ -146,7 +246,10 @@ const getStudents = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Get Students Error:", error);
+    console.error(
+      "Get Students Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -162,7 +265,10 @@ const getStudents = async (req, res) => {
 // ===============================
 const getStudentById = async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id).select("-password");
+    const student =
+      await Student.findById(
+        req.params.id
+      ).select("-password");
 
     if (!student) {
       return res.status(404).json({
@@ -177,7 +283,10 @@ const getStudentById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Get Student Error:", error);
+    console.error(
+      "Get Student Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -193,7 +302,10 @@ const getStudentById = async (req, res) => {
 // ===============================
 const deleteStudent = async (req, res) => {
   try {
-    const student = await Student.findByIdAndDelete(req.params.id);
+    const student =
+      await Student.findByIdAndDelete(
+        req.params.id
+      );
 
     if (!student) {
       return res.status(404).json({
@@ -208,7 +320,10 @@ const deleteStudent = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Delete Student Error:", error);
+    console.error(
+      "Delete Student Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -219,9 +334,13 @@ const deleteStudent = async (req, res) => {
 };
 
 
+// ===============================
+// EXPORT
+// ===============================
 module.exports = {
   registerStudent,
   loginStudent,
+  forgotPassword,
   getStudents,
   getStudentById,
   deleteStudent

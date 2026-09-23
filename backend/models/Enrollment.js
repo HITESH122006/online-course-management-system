@@ -30,7 +30,14 @@ const enrollmentSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 100
-    }
+    },
+
+    completedLessons: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Lesson"
+      }
+    ]
   },
   {
     timestamps: true

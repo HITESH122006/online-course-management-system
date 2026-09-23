@@ -3,6 +3,7 @@ const express = require("express");
 const {
   registerStudent,
   loginStudent,
+  forgotPassword,
   getStudents,
   getStudentById,
   deleteStudent
@@ -10,19 +11,59 @@ const {
 
 const router = express.Router();
 
-// Register student
-router.post("/register", registerStudent);
 
-// Login student
-router.post("/login", loginStudent);
+// ===============================
+// REGISTER
+// ===============================
+router.post(
+  "/register",
+  registerStudent
+);
 
-// Get all students
-router.get("/", getStudents);
 
-// Get student by ID
-router.get("/:id", getStudentById);
+// ===============================
+// LOGIN
+// ===============================
+router.post(
+  "/login",
+  loginStudent
+);
 
-// Delete student
-router.delete("/:id", deleteStudent);
+
+// ===============================
+// FORGOT / RESET PASSWORD
+// ===============================
+router.post(
+  "/forgot-password",
+  forgotPassword
+);
+
+
+// ===============================
+// GET ALL STUDENTS
+// ===============================
+router.get(
+  "/",
+  getStudents
+);
+
+
+// ===============================
+// GET STUDENT BY ID
+// ===============================
+router.get(
+  "/:id",
+  getStudentById
+);
+
+
+// ===============================
+// DELETE STUDENT
+// ===============================
+router.delete(
+  "/:id",
+  deleteStudent
+);
+
 
 module.exports = router;

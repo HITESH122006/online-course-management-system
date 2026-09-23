@@ -8,7 +8,8 @@
  */
 
 // Switch / Use the database
-use online_courses;
+// Mongo shell syntax: select/create a database
+const db = db.getSiblingDB("online_courses");
 
 // ==============================================================================
 // SECTION 1: MONGODB CRUD OPERATIONS

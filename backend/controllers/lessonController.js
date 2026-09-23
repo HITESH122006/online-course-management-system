@@ -1,7 +1,7 @@
 const Lesson = require("../models/Lesson");
 
 // =====================================
-// GET ALL LESSONS
+// GET ALL LESSONS$
 // =====================================
 const getLessons = async (req, res) => {
   try {

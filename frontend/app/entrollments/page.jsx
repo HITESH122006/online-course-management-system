@@ -11,15 +11,9 @@ export default function EnrollmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-
-  /* =========================
-     LOAD ENROLLMENTS
-  ========================= */
-
   useEffect(() => {
     loadEnrollments();
   }, []);
-
 
   const loadEnrollments = async () => {
     try {
@@ -29,176 +23,97 @@ export default function EnrollmentsPage() {
       const savedStudent =
         localStorage.getItem("student");
 
-
-      /* CHECK LOGIN */
-
       if (!savedStudent) {
         router.push("/login");
         return;
       }
 
-
       const studentData =
         JSON.parse(savedStudent);
 
-
-      console.log(
-        "Logged-in student:",
-        studentData
-      );
-
-
       setStudent(studentData);
-
-
-      /* GET MONGODB STUDENT ID */
 
       const studentId =
         studentData.id ||
         studentData._id;
 
-
-      console.log(
-        "Student MongoDB ID:",
-        studentId
-      );
-
-
-      /* VALIDATE STUDENT ID */
-
-      if (
-        !studentId ||
-        studentId === "..." ||
-        studentId.length !== 24
-      ) {
-
+      if (!studentId) {
         setError(
-          "Invalid MongoDB student ID. Please logout and login again."
+          "Student ID not found. Please login again."
         );
-
         setLoading(false);
         return;
       }
-
-
-      /* FETCH ENROLLMENTS */
 
       const response = await fetch(
         `http://localhost:5000/api/enrollments/student/${studentId}`
       );
 
-
-      const data =
-        await response.json();
-
+      const data = await response.json();
 
       console.log(
-        "Enrollment API Response:",
+        "Enrollment API:",
         data
       );
 
-
       if (!response.ok) {
-
         throw new Error(
           data.message ||
             "Failed to load enrollments"
         );
-
       }
-
 
       setEnrollments(
         data.enrollments || []
       );
-
-
     } catch (error) {
-
       console.error(
-        "Enrollment Error:",
+        "Enrollment error:",
         error
       );
-
 
       setError(
         error.message ||
           "Unable to load enrollments."
       );
-
-
     } finally {
-
       setLoading(false);
-
     }
   };
-
-
-  /* =========================
-     VIEW LESSONS
-  ========================= */
 
   const handleViewLessons = (
     courseId
   ) => {
-
     if (!courseId) {
       alert("Course ID not found.");
       return;
     }
 
-
     router.push(
       `/lessons?courseId=${courseId}`
     );
-
   };
 
-
-  /* =========================
-     LOGOUT
-  ========================= */
-
   const handleLogout = () => {
-
     localStorage.removeItem(
       "student"
     );
 
     router.push("/login");
-
   };
 
-
-  /* =========================
-     LOADING
-  ========================= */
-
   if (loading) {
-
     return (
-
       <div style={styles.center}>
-
         <h2>
           Loading My Enrollments...
         </h2>
-
       </div>
-
     );
-
   }
 
-
   return (
-
     <div style={styles.container}>
-
-      {/* =========================
-          HEADER
-      ========================= */}
 
       <header style={styles.header}>
 
@@ -206,51 +121,29 @@ export default function EnrollmentsPage() {
           Online Course Management System
         </h1>
 
-
         <div style={styles.headerButtons}>
-
-          {/* DASHBOARD */}
 
           <button
             onClick={() =>
-              router.push(
-                "/dashboard"
-              )
+              router.push("/dashboard")
             }
-
-            style={
-              styles.headerButton
-            }
+            style={styles.headerButton}
           >
             Dashboard
           </button>
 
-
-          {/* COURSES */}
-
           <button
             onClick={() =>
-              router.push(
-                "/courses"
-              )
+              router.push("/courses")
             }
-
-            style={
-              styles.headerButton
-            }
+            style={styles.headerButton}
           >
             Courses
           </button>
 
-
-          {/* LOGOUT */}
-
           <button
             onClick={handleLogout}
-
-            style={
-              styles.headerButton
-            }
+            style={styles.headerButton}
           >
             Logout
           </button>
@@ -259,120 +152,67 @@ export default function EnrollmentsPage() {
 
       </header>
 
-
-      {/* =========================
-          MAIN
-      ========================= */}
-
       <main style={styles.main}>
-
-        {/* BACK TO COURSES */}
 
         <button
           onClick={() =>
-            router.push(
-              "/courses"
-            )
+            router.push("/courses")
           }
-
-          style={
-            styles.backButton
-          }
+          style={styles.backButton}
         >
           ← Back to Courses
         </button>
-
-
-        {/* HEADING */}
 
         <h2 style={styles.heading}>
           My Enrollments
         </h2>
 
-
-        {/* WELCOME */}
-
         {student && (
-
           <p style={styles.welcome}>
             Welcome, {student.name}!
           </p>
-
         )}
 
-
-        {/* ERROR */}
-
         {error && (
-
           <div style={styles.error}>
-
-            <strong>
-              Error:
-            </strong>{" "}
-
+            <strong>Error:</strong>{" "}
             {error}
 
             <br />
 
             <button
-              onClick={handleLogout}
-
-              style={
-                styles.retryButton
-              }
+              onClick={loadEnrollments}
+              style={styles.retryButton}
             >
-              Logout and Login Again
+              Try Again
             </button>
-
           </div>
-
         )}
-
-
-        {/* NO ENROLLMENTS */}
 
         {!error &&
           enrollments.length === 0 && (
-
             <div style={styles.empty}>
-
               <h3>
                 No Enrollments Found
               </h3>
 
-
               <p>
-                You have not enrolled in
-                any courses yet.
+                You have not enrolled
+                in any courses yet.
               </p>
-
 
               <button
                 onClick={() =>
-                  router.push(
-                    "/courses"
-                  )
+                  router.push("/courses")
                 }
-
-                style={
-                  styles.courseButton
-                }
+                style={styles.courseButton}
               >
                 Browse Courses
               </button>
-
             </div>
-
           )}
 
-
-        {/* =========================
-            ENROLLMENT GRID
-        ========================= */}
-
         {enrollments.length > 0 && (
-
           <div style={styles.grid}>
 
             {enrollments.map(
@@ -381,28 +221,21 @@ export default function EnrollmentsPage() {
                 const course =
                   enrollment.course;
 
-
                 const courseId =
                   course?._id ||
                   course?.id;
-
 
                 const progress =
                   enrollment.progress ||
                   0;
 
-
                 return (
-
                   <div
                     key={
                       enrollment._id
                     }
-
                     style={styles.card}
                   >
-
-                    {/* COURSE TITLE */}
 
                     <h3
                       style={
@@ -413,9 +246,6 @@ export default function EnrollmentsPage() {
                         "Course"}
                     </h3>
 
-
-                    {/* DESCRIPTION */}
-
                     <p
                       style={
                         styles.description
@@ -425,115 +255,74 @@ export default function EnrollmentsPage() {
                         "No description available."}
                     </p>
 
-
-                    {/* CATEGORY */}
-
                     <p>
-
                       <strong>
                         Category:
                       </strong>{" "}
-
                       {course?.category ||
                         "N/A"}
-
                     </p>
 
-
-                    {/* DURATION */}
-
                     <p>
-
                       <strong>
                         Duration:
                       </strong>{" "}
-
                       {course?.duration ||
                         "N/A"}
-
                     </p>
 
-
-                    {/* INSTRUCTOR */}
-
                     <p>
-
                       <strong>
                         Instructor:
                       </strong>{" "}
-
-                      {course?.instructorName ||
-
-                        course?.instructor?.name ||
-
+                      {course
+                        ?.instructorName ||
+                        course
+                          ?.instructor
+                          ?.name ||
                         "N/A"}
-
                     </p>
 
-
-                    {/* STATUS */}
-
                     <p>
-
                       <strong>
                         Status:
                       </strong>{" "}
-
                       {enrollment.status ||
                         "Active"}
-
                     </p>
-
-
-                    {/* =========================
-                        PROGRESS
-                    ========================= */}
 
                     <div
                       style={
                         styles.progressSection
                       }
                     >
-
                       <div
                         style={
                           styles.progressHeader
                         }
                       >
-
                         <strong>
                           Progress
                         </strong>
 
-
                         <span>
                           {progress}%
                         </span>
-
                       </div>
-
 
                       <div
                         style={
                           styles.progressBackground
                         }
                       >
-
                         <div
                           style={{
                             ...styles.progressBar,
-
-                            width:
-                              `${progress}%`
+                            width: `${progress}%`
                           }}
                         />
-
                       </div>
-
                     </div>
-
-
-                    {/* VIEW LESSONS */}
 
                     <button
                       onClick={() =>
@@ -541,7 +330,6 @@ export default function EnrollmentsPage() {
                           courseId
                         )
                       }
-
                       style={
                         styles.lessonButton
                       }
@@ -550,453 +338,183 @@ export default function EnrollmentsPage() {
                     </button>
 
                   </div>
-
                 );
-
               }
             )}
 
           </div>
-
         )}
 
       </main>
-
     </div>
-
   );
-
 }
 
-
-/* =========================
-   STYLES
-========================= */
-
 const styles = {
-
-
-  /* =========================
-     PAGE BACKGROUND
-  ========================= */
-
   container: {
-
     minHeight: "100vh",
-
-    background:
-      "linear-gradient(rgba(10, 20, 40, 0.55), rgba(10, 20, 40, 0.55)), url('https://plus.unsplash.com/premium_photo-1661670152522-8db946b83f81?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDE1fHx8ZW58MHx8fHx8')",
-
-    backgroundSize: "cover",
-
-    backgroundPosition: "center",
-
-    backgroundAttachment: "fixed",
-
-    backgroundRepeat: "no-repeat"
-
+    background: "#f4f7fb"
   },
-
-
-  /* =========================
-     HEADER
-  ========================= */
 
   header: {
-
     background: "#2563eb",
-
     color: "white",
-
     padding: "18px 30px",
-
     display: "flex",
-
     justifyContent: "space-between",
-
     alignItems: "center"
-
   },
-
-
-  /* =========================
-     TITLE
-  ========================= */
 
   title: {
-
     margin: 0,
-
     fontSize: "24px"
-
   },
-
-
-  /* =========================
-     HEADER BUTTONS
-  ========================= */
 
   headerButtons: {
-
     display: "flex",
-
     gap: "10px"
-
   },
-
 
   headerButton: {
-
     background: "white",
-
     color: "#2563eb",
-
     border: "none",
-
     padding: "10px 16px",
-
     borderRadius: "6px",
-
     cursor: "pointer",
-
     fontWeight: "600"
-
   },
-
-
-  /* =========================
-     MAIN
-  ========================= */
 
   main: {
-
     maxWidth: "1100px",
-
     margin: "40px auto",
-
     padding: "20px"
-
   },
-
-
-  /* =========================
-     BACK BUTTON
-  ========================= */
 
   backButton: {
-
-    background: "white",
-
+    background: "transparent",
     border: "none",
-
     color: "#2563eb",
-
-    cursor: "pointer",
-
     fontSize: "16px",
-
-    marginBottom: "20px",
-
-    padding: "10px 15px",
-
-    borderRadius: "6px",
-
-    fontWeight: "600"
-
+    cursor: "pointer",
+    marginBottom: "20px"
   },
-
-
-  /* =========================
-     HEADING
-  ========================= */
 
   heading: {
-
     fontSize: "32px",
-
-    color: "white",
-
+    color: "#222",
     marginBottom: "8px"
-
   },
-
-
-  /* =========================
-     WELCOME
-  ========================= */
 
   welcome: {
-
-    color: "#f1f5f9",
-
+    color: "#666",
     fontSize: "17px",
-
     marginBottom: "30px"
-
   },
-
-
-  /* =========================
-     GRID
-  ========================= */
 
   grid: {
-
     display: "grid",
-
     gridTemplateColumns:
       "repeat(2, 1fr)",
-
     gap: "25px"
-
   },
-
-
-  /* =========================
-     CARD
-  ========================= */
 
   card: {
-
     background: "white",
-
     padding: "25px",
-
     borderRadius: "10px",
-
     boxShadow:
       "0 3px 12px rgba(0,0,0,0.1)"
-
   },
-
-
-  /* =========================
-     COURSE TITLE
-  ========================= */
 
   courseTitle: {
-
     fontSize: "22px",
-
     color: "#2563eb",
-
     marginBottom: "12px"
-
   },
-
-
-  /* =========================
-     DESCRIPTION
-  ========================= */
 
   description: {
-
     color: "#555",
-
     lineHeight: "1.5",
-
     marginBottom: "20px"
-
   },
-
-
-  /* =========================
-     PROGRESS SECTION
-  ========================= */
 
   progressSection: {
-
     marginTop: "20px",
-
     marginBottom: "20px"
-
   },
-
-
-  /* =========================
-     PROGRESS HEADER
-  ========================= */
 
   progressHeader: {
-
     display: "flex",
-
     justifyContent:
       "space-between",
-
     marginBottom: "8px"
-
   },
-
-
-  /* =========================
-     PROGRESS BACKGROUND
-  ========================= */
 
   progressBackground: {
-
     width: "100%",
-
     height: "10px",
-
     background: "#e5e7eb",
-
     borderRadius: "10px",
-
     overflow: "hidden"
-
   },
-
-
-  /* =========================
-     PROGRESS BAR
-  ========================= */
 
   progressBar: {
-
     height: "100%",
-
     background: "#2563eb",
-
     borderRadius: "10px"
-
   },
-
-
-  /* =========================
-     LESSON BUTTON
-  ========================= */
 
   lessonButton: {
-
     width: "100%",
-
     background: "#2563eb",
-
     color: "white",
-
     border: "none",
-
     padding: "12px",
-
     borderRadius: "6px",
-
     cursor: "pointer",
-
     fontWeight: "600"
-
   },
-
-
-  /* =========================
-     EMPTY
-  ========================= */
 
   empty: {
-
     background: "white",
-
     padding: "50px",
-
     borderRadius: "10px",
-
     textAlign: "center"
-
   },
-
-
-  /* =========================
-     COURSE BUTTON
-  ========================= */
 
   courseButton: {
-
     background: "#2563eb",
-
     color: "white",
-
     border: "none",
-
     padding: "12px 22px",
-
     borderRadius: "6px",
-
     cursor: "pointer",
-
     marginTop: "15px"
-
   },
-
-
-  /* =========================
-     ERROR
-  ========================= */
 
   error: {
-
     background: "#fee2e2",
-
     color: "#991b1b",
-
     padding: "15px",
-
     borderRadius: "8px",
-
     marginBottom: "20px"
-
   },
-
-
-  /* =========================
-     RETRY / LOGOUT BUTTON
-  ========================= */
 
   retryButton: {
-
     marginTop: "10px",
-
     background: "#2563eb",
-
     color: "white",
-
     border: "none",
-
-    padding: "10px 18px",
-
+    padding: "8px 15px",
     borderRadius: "5px",
-
     cursor: "pointer"
-
   },
 
-
-  /* =========================
-     LOADING SCREEN
-  ========================= */
-
   center: {
-
     minHeight: "100vh",
-
     display: "flex",
-
     justifyContent: "center",
-
-    alignItems: "center",
-
-    background:
-      "linear-gradient(rgba(10, 20, 40, 0.55), rgba(10, 20, 40, 0.55)), url('https://plus.unsplash.com/premium_photo-1661670152522-8db946b83f81?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDE1fHx8ZW58MHx8fHx8')",
-
-    backgroundSize: "cover",
-
-    backgroundPosition: "center",
-
-    backgroundAttachment: "fixed",
-
-    backgroundRepeat: "no-repeat",
-
-    color: "white"
-
+    alignItems: "center"
   }
-
 };

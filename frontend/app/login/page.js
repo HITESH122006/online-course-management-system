@@ -21,6 +21,11 @@ export default function LoginPage() {
   const [success, setSuccess] =
     useState("");
 
+
+  /* =========================
+     LOGIN FUNCTION
+  ========================= */
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -38,7 +43,9 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      console.log("Sending login request...");
+      console.log(
+        "Sending login request..."
+      );
 
       const response = await fetch(
         "http://localhost:5000/api/students/login",
@@ -63,6 +70,7 @@ export default function LoginPage() {
         data
       );
 
+
       // Login failed
       if (!response.ok) {
         setError(
@@ -74,6 +82,7 @@ export default function LoginPage() {
         return;
       }
 
+
       // Check student data
       if (!data.student) {
         setError(
@@ -84,20 +93,24 @@ export default function LoginPage() {
         return;
       }
 
+
       console.log(
         "Student received from backend:",
         data.student
       );
+
 
       // Get MongoDB ID
       const studentId =
         data.student.id ||
         data.student._id;
 
+
       console.log(
         "Student MongoDB ID:",
         studentId
       );
+
 
       // Check MongoDB ID
       if (
@@ -113,21 +126,30 @@ export default function LoginPage() {
         return;
       }
 
+
       // Create student object
       const studentData = {
         id: studentId,
+
         studentId:
           data.student.studentId,
-        name: data.student.name,
-        email: data.student.email,
+
+        name:
+          data.student.name,
+
+        email:
+          data.student.email,
+
         phone:
           data.student.phone || ""
       };
+
 
       console.log(
         "Student data to save:",
         studentData
       );
+
 
       // SAVE STUDENT IN LOCAL STORAGE
       localStorage.setItem(
@@ -135,14 +157,19 @@ export default function LoginPage() {
         JSON.stringify(studentData)
       );
 
+
       // Verify localStorage
       const savedStudent =
-        localStorage.getItem("student");
+        localStorage.getItem(
+          "student"
+        );
+
 
       console.log(
         "Student saved in localStorage:",
         savedStudent
       );
+
 
       if (!savedStudent) {
         setError(
@@ -153,11 +180,13 @@ export default function LoginPage() {
         return;
       }
 
+
       setSuccess(
         "Login successful! Redirecting..."
       );
 
       setLoading(false);
+
 
       // Go to dashboard
       setTimeout(() => {
@@ -165,6 +194,7 @@ export default function LoginPage() {
       }, 500);
 
     } catch (error) {
+
       console.error(
         "Login Error:",
         error
@@ -178,6 +208,7 @@ export default function LoginPage() {
     }
   };
 
+
   return (
     <div style={styles.container}>
 
@@ -189,14 +220,17 @@ export default function LoginPage() {
           Online Course Management System
         </h1>
 
+
         <h2 style={styles.subtitle}>
           Student Login
         </h2>
+
 
         <p style={styles.description}>
           Login to access your courses and
           learning dashboard.
         </p>
+
 
         {/* ERROR */}
 
@@ -206,6 +240,7 @@ export default function LoginPage() {
           </div>
         )}
 
+
         {/* SUCCESS */}
 
         {success && (
@@ -213,6 +248,7 @@ export default function LoginPage() {
             {success}
           </div>
         )}
+
 
         {/* FORM */}
 
@@ -226,11 +262,14 @@ export default function LoginPage() {
               Email Address
             </label>
 
+
             <input
               type="email"
               value={email}
               onChange={(e) =>
-                setEmail(e.target.value)
+                setEmail(
+                  e.target.value
+                )
               }
               placeholder="Enter your email"
               style={styles.input}
@@ -239,6 +278,7 @@ export default function LoginPage() {
 
           </div>
 
+
           {/* PASSWORD */}
 
           <div style={styles.formGroup}>
@@ -246,6 +286,7 @@ export default function LoginPage() {
             <label style={styles.label}>
               Password
             </label>
+
 
             <div
               style={
@@ -259,28 +300,43 @@ export default function LoginPage() {
                     ? "text"
                     : "password"
                 }
+
                 value={password}
+
                 onChange={(e) =>
                   setPassword(
                     e.target.value
                   )
                 }
+
                 placeholder="Enter your password"
-                style={styles.passwordInput}
+
+                style={
+                  styles.passwordInput
+                }
+
                 disabled={loading}
               />
 
+
+              {/* SHOW / HIDE PASSWORD */}
+
               <button
                 type="button"
+
                 onClick={() =>
                   setShowPassword(
                     !showPassword
                   )
                 }
-                style={styles.eyeButton}
+
+                style={
+                  styles.eyeButton
+                }
               >
 
                 {showPassword ? (
+
                   <svg
                     width="20"
                     height="20"
@@ -289,6 +345,7 @@ export default function LoginPage() {
                     stroke="currentColor"
                     strokeWidth="2"
                   >
+
                     <path
                       d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"
                     />
@@ -298,8 +355,11 @@ export default function LoginPage() {
                       cy="12"
                       r="3"
                     />
+
                   </svg>
+
                 ) : (
+
                   <svg
                     width="20"
                     height="20"
@@ -308,6 +368,7 @@ export default function LoginPage() {
                     stroke="currentColor"
                     strokeWidth="2"
                   >
+
                     <path
                       d="M3 3l18 18"
                     />
@@ -323,7 +384,9 @@ export default function LoginPage() {
                     <path
                       d="M6.61 6.61C3.68 8.58 2 12 2 12s3 7 10 7a10.9 10.9 0 0 0 4.39-.91"
                     />
+
                   </svg>
+
                 )}
 
               </button>
@@ -332,16 +395,20 @@ export default function LoginPage() {
 
           </div>
 
+
           {/* LOGIN BUTTON */}
 
           <button
             type="submit"
             disabled={loading}
+
             style={{
               ...styles.loginButton,
-              opacity: loading
-                ? 0.7
-                : 1
+
+              opacity:
+                loading
+                  ? 0.7
+                  : 1
             }}
           >
 
@@ -351,7 +418,31 @@ export default function LoginPage() {
 
           </button>
 
+
+          {/* FORGOT PASSWORD */}
+
+          <p style={styles.forgotText}>
+
+            <button
+              type="button"
+
+              onClick={() =>
+                router.push(
+                  "/forgot-password"
+                )
+              }
+
+              style={
+                styles.forgotButton
+              }
+            >
+              Forgot Password?
+            </button>
+
+          </p>
+
         </form>
+
 
         {/* REGISTER */}
 
@@ -361,10 +452,16 @@ export default function LoginPage() {
 
           <button
             type="button"
+
             onClick={() =>
-              router.push("/register")
+              router.push(
+                "/register"
+              )
             }
-            style={styles.registerButton}
+
+            style={
+              styles.registerButton
+            }
           >
             Register
           </button>
@@ -384,135 +481,286 @@ export default function LoginPage() {
 
 const styles = {
 
+  /* PAGE BACKGROUND */
+
   container: {
     minHeight: "100vh",
-    background: "#f4f7fb",
+
+    background:
+      "linear-gradient(rgba(10, 20, 40, 0.55), rgba(10, 20, 40, 0.55)), url('https://plus.unsplash.com/premium_photo-1661670152522-8db946b83f81?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDE1fHx8ZW58MHx8fHx8')",
+
+    backgroundSize: "cover",
+
+    backgroundPosition: "center",
+
+    backgroundAttachment: "fixed",
+
+    backgroundRepeat: "no-repeat",
+
     display: "flex",
+
     justifyContent: "center",
+
     alignItems: "center",
+
     padding: "20px"
   },
 
+
+  /* LOGIN CARD */
+
   card: {
     width: "100%",
+
     maxWidth: "450px",
+
     background: "white",
+
     padding: "35px",
+
     borderRadius: "12px",
+
     boxShadow:
       "0 4px 15px rgba(0,0,0,0.1)"
   },
 
+
+  /* TITLE */
+
   title: {
     textAlign: "center",
+
     color: "#2563eb",
+
     fontSize: "24px",
+
     marginBottom: "10px"
   },
 
+
+  /* SUBTITLE */
+
   subtitle: {
     textAlign: "center",
+
     color: "#222",
+
     fontSize: "26px",
+
     marginBottom: "8px"
   },
 
+
+  /* DESCRIPTION */
+
   description: {
     textAlign: "center",
+
     color: "#666",
+
     marginBottom: "25px"
   },
+
+
+  /* FORM GROUP */
 
   formGroup: {
     marginBottom: "20px"
   },
 
+
+  /* LABEL */
+
   label: {
     display: "block",
+
     marginBottom: "7px",
+
     fontWeight: "600",
+
     color: "#333"
   },
 
+
+  /* EMAIL INPUT */
+
   input: {
     width: "100%",
+
     padding: "12px",
-    border: "1px solid #ccc",
+
+    border:
+      "1px solid #ccc",
+
     borderRadius: "6px",
+
     fontSize: "16px",
+
     boxSizing: "border-box"
   },
+
+
+  /* PASSWORD CONTAINER */
 
   passwordContainer: {
     position: "relative",
+
     width: "100%"
   },
 
+
+  /* PASSWORD INPUT */
+
   passwordInput: {
     width: "100%",
-    padding: "12px 45px 12px 12px",
-    border: "1px solid #ccc",
+
+    padding:
+      "12px 45px 12px 12px",
+
+    border:
+      "1px solid #ccc",
+
     borderRadius: "6px",
+
     fontSize: "16px",
+
     boxSizing: "border-box"
   },
 
+
+  /* EYE BUTTON */
+
   eyeButton: {
     position: "absolute",
+
     right: "10px",
+
     top: "50%",
-    transform: "translateY(-50%)",
+
+    transform:
+      "translateY(-50%)",
+
     background: "none",
+
     border: "none",
+
     cursor: "pointer",
+
     color: "#555",
+
     display: "flex",
+
     alignItems: "center",
+
     justifyContent: "center"
   },
 
+
+  /* LOGIN BUTTON */
+
   loginButton: {
     width: "100%",
+
     padding: "13px",
+
     background: "#2563eb",
+
     color: "white",
+
     border: "none",
+
     borderRadius: "6px",
+
     cursor: "pointer",
+
     fontSize: "16px",
+
     fontWeight: "600"
   },
 
-  error: {
-    background: "#fee2e2",
-    color: "#991b1b",
-    padding: "12px",
-    borderRadius: "6px",
-    marginBottom: "20px",
+
+  /* FORGOT PASSWORD */
+
+  forgotText: {
+    textAlign: "right",
+
+    marginTop: "12px",
+
+    marginBottom: "5px"
+  },
+
+
+  forgotButton: {
+    background: "none",
+
+    border: "none",
+
+    color: "#2563eb",
+
+    cursor: "pointer",
+
+    fontWeight: "600",
+
     fontSize: "14px"
   },
+
+
+  /* ERROR */
+
+  error: {
+    background: "#fee2e2",
+
+    color: "#991b1b",
+
+    padding: "12px",
+
+    borderRadius: "6px",
+
+    marginBottom: "20px",
+
+    fontSize: "14px"
+  },
+
+
+  /* SUCCESS */
 
   success: {
     background: "#dcfce7",
+
     color: "#166534",
+
     padding: "12px",
+
     borderRadius: "6px",
+
     marginBottom: "20px",
+
     fontSize: "14px"
   },
 
+
+  /* REGISTER */
+
   registerText: {
     textAlign: "center",
+
     marginTop: "25px",
+
     color: "#666"
   },
 
+
   registerButton: {
     background: "none",
+
     border: "none",
+
     color: "#2563eb",
+
     cursor: "pointer",
+
     fontWeight: "600",
+
     fontSize: "15px"
   }
 
